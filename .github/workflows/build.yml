@@ -22,36 +22,27 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install reportlab pillow pyinstaller
+        run: python -m pip install reportlab pillow pyinstaller
 
-      - name: Build Cantine.exe with PyInstaller
-        run: |
-          python -m PyInstaller --onefile --windowed --name "Cantine" --icon "cantine.ico" --add-data "cantine.ico;." main.py
+      - name: Build Cantine.exe
+        run: python -m PyInstaller --onefile --windowed --name "Cantine" --icon "cantine.ico" --add-data "cantine.ico;." main.py
 
       - name: Install NSIS
-        run: |
-          choco install nsis --yes
+        run: choco install nsis --yes --no-progress
 
-      - name: Build CantineSetup.exe with NSIS
-        run: |
-          makensis installer.nsi
+      - name: Build CantineSetup.exe
+        shell: cmd
+        run: '"C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi'
 
-      - name: Create GitHub Release
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: "Gestion Cantine ${{ github.ref_name }}"
           body: |
             ## Gestion de Cantine ${{ github.ref_name }}
 
-            ### Comment installer
-            1. Telechargez **CantineSetup.exe** ci-dessous
-            2. Double-cliquez dessus
-            3. Suivez les etapes d installation
-            4. L application se lance automatiquement
-            5. Mot de passe : `1234`
-
-            ### Desinstallation
-            Panneau de configuration -> Programmes -> Gestion Cantine -> Desinstaller
+            1. Telechargez CantineSetup.exe
+            2. Double-cliquez
+            3. Suivez l installation
+            4. Mot de passe : 1234
           files: CantineSetup.exe
