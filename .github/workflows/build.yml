@@ -1,9 +1,12 @@
-name: Build Cantine.exe
+name: Build CantineSetup.exe
 
 on:
   push:
     tags:
       - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -18,29 +21,37 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install reportlab pillow pyinstaller
 
-      - name: Build Cantine.exe
+      - name: Build Cantine.exe with PyInstaller
         run: |
           python -m PyInstaller --onefile --windowed --name "Cantine" --icon "cantine.ico" --add-data "cantine.ico;." main.py
 
-      - name: Create Release
+      - name: Install NSIS
+        run: |
+          choco install nsis --yes
+
+      - name: Build CantineSetup.exe with NSIS
+        run: |
+          makensis installer.nsi
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: "Gestion Cantine ${{ github.ref_name }}"
           body: |
-            ## Gestion de Cantine - ${{ github.ref_name }}
+            ## Gestion de Cantine ${{ github.ref_name }}
 
-            ### Installation
-            1. Téléchargez **Cantine.exe** ci-dessous
-            2. Double-cliquez pour lancer directement
-            3. Mot de passe : `1234`
+            ### Comment installer
+            1. Telechargez **CantineSetup.exe** ci-dessous
+            2. Double-cliquez dessus
+            3. Suivez les etapes d installation
+            4. L application se lance automatiquement
+            5. Mot de passe : `1234`
 
-            ### Aucune installation requise
-            Le fichier .exe contient tout — Python, les librairies, tout.
-          files: dist/Cantine.exe
-          draft: false
-          prerelease: false
+            ### Desinstallation
+            Panneau de configuration -> Programmes -> Gestion Cantine -> Desinstaller
+          files: CantineSetup.exe
