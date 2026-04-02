@@ -562,13 +562,14 @@ class SignatureWindow(tk.Toplevel):
 # COMMANDE
 # ─────────────────────────────────────────────
 class CommandeWindow(tk.Toplevel):
-    def __init__(self, master, categorie, user_info, user_type, sig_path):
+    def __init__(self, master, categorie, user_info, user_type, sig_path,
+                 commande_init=None):
         super().__init__(master)
         self.categorie = categorie
         self.user_info = user_info
         self.user_type = user_type
         self.sig_path  = sig_path
-        self.commande  = {}   # pid -> {nom, prix, qte, qte_max}
+        self.commande  = dict(commande_init) if commande_init else {}
         self.produits  = []
         self.title(f"Bon de commande — {categorie}")
         self.configure(bg=DARK_BG)
@@ -761,6 +762,8 @@ class CommandeWindow(tk.Toplevel):
                       row=1, column=0, columnspan=2, sticky="ew", pady=(6,2))
 
         self._load_products()
+        if self.commande:
+            self._refresh_bon()
 
     def _apply_style(self):
         s = ttk.Style()
@@ -879,12 +882,32 @@ class CommandeWindow(tk.Toplevel):
 
 
 class ParametresWindow(tk.Toplevel):
+    # Palette 56 couleurs (8 colonnes x 7 lignes)
+    PALETTE = [
+        # Blancs / gris
+        "#ffffff","#f0f0f0","#d0d0d0","#a0a0a0","#707070","#404040","#202020","#000000",
+        # Rouges
+        "#ffe0e0","#ffaaaa","#ff6666","#ff2222","#cc0000","#990000","#660000","#330000",
+        # Oranges
+        "#fff0d0","#ffcc88","#ffaa44","#ff8800","#cc6600","#993300","#662200","#331100",
+        # Jaunes
+        "#ffffe0","#ffff99","#ffee44","#ffcc00","#ccaa00","#997700","#664400","#332200",
+        # Verts
+        "#e0ffe0","#99ee99","#44cc44","#00aa00","#007700","#004400","#002200","#001100",
+        # Bleus
+        "#e0e8ff","#99aaff","#4466ff","#1133cc","#0022aa","#001177","#000055","#000033",
+        # Cyans
+        "#d0ffff","#88eeff","#22ccee","#00aacc","#007799","#005566","#003344","#001122",
+        # Violets / roses
+        "#ffe0ff","#ee99ee","#cc44cc","#aa00aa","#880066","#660044","#440033","#220022",
+    ]
+
     def __init__(self, master):
         super().__init__(master)
         self.title("Paramètres")
         self.configure(bg=DARK_BG)
         self.resizable(False, False)
-        self.geometry("420x340")
+        self.geometry("680x700")
         self._center()
         self._build()
 
@@ -896,13 +919,22 @@ class ParametresWindow(tk.Toplevel):
 
     def _build(self):
         params = db.get_parametres()
+
         bar = tk.Frame(self, bg=HEADER_BG, height=44)
         bar.pack(fill="x")
         bar.pack_propagate(False)
-        tk.Label(bar, text="⚙️  Mes Informations",
+        tk.Label(bar, text="⚙️  Paramètres",
                  font=("Helvetica",12,"bold"), bg=HEADER_BG, fg="white").pack(side="left", padx=14, pady=8)
 
-        frm = tk.Frame(self, bg=DARK_BG, padx=30, pady=20)
+        # Notebook (onglets)
+        nb = ttk.Notebook(self)
+        nb.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # ── Onglet 1 : Mes informations ───────────────────────────────────────
+        tab1 = tk.Frame(nb, bg=DARK_BG)
+        nb.add(tab1, text="  👤  Mes informations  ")
+
+        frm = tk.Frame(tab1, bg=DARK_BG, padx=30, pady=20)
         frm.pack(fill="both", expand=True)
         fields = [("Nom","nom",params.get("nom","")),
                   ("Prénom","prenom",params.get("prenom","")),
@@ -912,7 +944,7 @@ class ParametresWindow(tk.Toplevel):
         self.vars = {}
         for label, key, val in fields:
             row = tk.Frame(frm, bg=DARK_BG)
-            row.pack(fill="x", pady=4)
+            row.pack(fill="x", pady=5)
             tk.Label(row, text=label+":", width=12, anchor="e",
                      font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(0,8))
             v = tk.StringVar(value=val)
@@ -921,11 +953,142 @@ class ParametresWindow(tk.Toplevel):
                      bg=CARD_BG, fg=TEXT, insertbackground=TEXT, bd=0,
                      relief="flat", highlightthickness=1, highlightbackground=BORDER,
                      highlightcolor=ACCENT).pack(side="left", fill="x", expand=True, ipady=6)
-        tk.Button(frm, text="💾 Enregistrer",
+        tk.Button(frm, text="💾  Enregistrer",
                   command=self._sauvegarder,
                   font=("Helvetica",11,"bold"), bg=SUCCESS, fg="white", bd=0,
-                  cursor="hand2", pady=8,
-                  activebackground="#15803d").pack(fill="x", pady=(16,0))
+                  cursor="hand2", pady=8).pack(fill="x", pady=(20,0))
+
+        # ── Onglet 2 : Couleurs des bons ─────────────────────────────────────
+        tab2 = tk.Frame(nb, bg=DARK_BG)
+        nb.add(tab2, text="  🎨  Couleurs des bons  ")
+        self._build_couleurs(tab2)
+
+    def _build_couleurs(self, parent):
+        """Palette de couleurs pour personnaliser chaque catégorie."""
+        tk.Label(parent,
+                 text="Choisissez la couleur de fond de chaque bon de cantine",
+                 font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(pady=(12,6))
+
+        # Sélecteur de catégorie
+        top = tk.Frame(parent, bg=DARK_BG)
+        top.pack(fill="x", padx=20, pady=4)
+
+        tk.Label(top, text="Catégorie :", font=("Helvetica",10,"bold"),
+                 bg=DARK_BG, fg=TEXT).pack(side="left")
+
+        cats = [c[0] for c in CATEGORIES]
+        self.cat_couleur_var = tk.StringVar(value=cats[0])
+        cb = ttk.Combobox(top, textvariable=self.cat_couleur_var,
+                          values=cats, state="readonly", width=22,
+                          font=("Helvetica",10))
+        cb.pack(side="left", padx=10)
+        cb.bind("<<ComboboxSelected>>", lambda e: self._update_preview_couleur())
+
+        # Aperçu couleur actuelle
+        prev_frm = tk.Frame(parent, bg=DARK_BG)
+        prev_frm.pack(pady=6)
+        tk.Label(prev_frm, text="Couleur actuelle :",
+                 font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left")
+        self.prev_lbl = tk.Label(prev_frm, text="       ",
+                                 width=8, relief="solid", bd=1)
+        self.prev_lbl.pack(side="left", padx=8)
+        self.prev_hex = tk.Label(prev_frm, text="",
+                                 font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED)
+        self.prev_hex.pack(side="left")
+
+        # Palette
+        tk.Label(parent, text="Choisir une couleur :",
+                 font=("Helvetica",10,"bold"), bg=DARK_BG, fg=TEXT).pack(pady=(8,4))
+
+        palette_frm = tk.Frame(parent, bg=DARK_BG)
+        palette_frm.pack()
+
+        self._selected_color = tk.StringVar()
+        COLS = 8
+        for i, color in enumerate(self.PALETTE):
+            r, c = divmod(i, COLS)
+            btn = tk.Button(palette_frm, bg=color, width=3, height=1,
+                            relief="flat", bd=2, cursor="hand2",
+                            command=lambda col=color: self._choisir_couleur(col))
+            btn.grid(row=r, column=c, padx=2, pady=2)
+            btn.bind("<Enter>", lambda e, b=btn, col=color: b.config(relief="raised"))
+            btn.bind("<Leave>", lambda e, b=btn: b.config(relief="flat"))
+
+        # Couleur personnalisée
+        custom_frm = tk.Frame(parent, bg=DARK_BG)
+        custom_frm.pack(pady=8)
+        tk.Label(custom_frm, text="Couleur personnalisée (#RRGGBB) :",
+                 font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left")
+        self.custom_var = tk.StringVar()
+        tk.Entry(custom_frm, textvariable=self.custom_var, width=10,
+                 font=("Helvetica",10), bg=CARD_BG, fg=TEXT,
+                 insertbackground=TEXT, bd=0, relief="flat",
+                 highlightthickness=1, highlightbackground=BORDER).pack(side="left", padx=6, ipady=4)
+        tk.Button(custom_frm, text="Appliquer",
+                  command=self._appliquer_custom,
+                  font=("Helvetica",9), bg=ACCENT, fg="white", bd=0,
+                  cursor="hand2", pady=4, padx=8).pack(side="left")
+
+        # Bouton réinitialiser
+        tk.Button(parent, text="↩️  Réinitialiser couleur par défaut",
+                  command=self._reset_couleur,
+                  font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
+                  cursor="hand2", pady=5, padx=10).pack(pady=4)
+
+        self._update_preview_couleur()
+
+    def _get_couleur_key(self):
+        return f"couleur_{self.cat_couleur_var.get()}"
+
+    def _update_preview_couleur(self):
+        params = db.get_parametres()
+        cat    = self.cat_couleur_var.get()
+        key    = f"couleur_{cat}"
+        # Couleur stockée ou défaut
+        from impression import BG
+        default_rgb = BG.get(cat, (0.82, 0.82, 0.82))
+        default_hex = "#{:02x}{:02x}{:02x}".format(
+            int(default_rgb[0]*255),
+            int(default_rgb[1]*255),
+            int(default_rgb[2]*255))
+        couleur = params.get(key, default_hex)
+        try:
+            self.prev_lbl.config(bg=couleur)
+            self.prev_hex.config(text=couleur)
+        except:
+            pass
+
+    def _choisir_couleur(self, color):
+        cat = self.cat_couleur_var.get()
+        db.set_parametre(f"couleur_{cat}", color)
+        self._update_preview_couleur()
+        messagebox.showinfo("Couleur",
+            f"Couleur du bon {cat} changée en {color} !", parent=self)
+
+    def _appliquer_custom(self):
+        color = self.custom_var.get().strip()
+        if not color.startswith("#") or len(color) not in (4, 7):
+            messagebox.showwarning("Format invalide",
+                "Format attendu : #RRGGBB (ex: #ff8800)", parent=self)
+            return
+        try:
+            self.prev_lbl.config(bg=color)
+        except:
+            messagebox.showwarning("Couleur invalide",
+                "Cette couleur n'est pas valide.", parent=self)
+            return
+        cat = self.cat_couleur_var.get()
+        db.set_parametre(f"couleur_{cat}", color)
+        self._update_preview_couleur()
+        messagebox.showinfo("Couleur",
+            f"Couleur du bon {cat} changée en {color} !", parent=self)
+
+    def _reset_couleur(self):
+        cat = self.cat_couleur_var.get()
+        db.set_parametre(f"couleur_{cat}", "")
+        self._update_preview_couleur()
+        messagebox.showinfo("Réinitialisation",
+            f"Couleur du bon {cat} réinitialisée.", parent=self)
 
     def _sauvegarder(self):
         for key, var in self.vars.items():
@@ -1179,10 +1342,15 @@ class HistoriqueWindow(tk.Toplevel):
         abar = tk.Frame(self, bg=PANEL_BG)
         abar.pack(fill="x")
 
-        tk.Button(abar, text="🖨️  Réimprimer ce bon",
+        tk.Button(abar, text="🖨️  Réimprimer",
                   command=self._reimprimer,
                   font=("Helvetica",10), bg=ACCENT, fg="white", bd=0,
                   cursor="hand2", pady=7, padx=14).pack(side="left", padx=8, pady=6)
+
+        tk.Button(abar, text="✏️  Rééditer le bon",
+                  command=self._reediter,
+                  font=("Helvetica",10), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=7, padx=14).pack(side="left", padx=4, pady=6)
 
         tk.Button(abar, text="🗑️  Supprimer ce bon",
                   command=self._supprimer_bon,
@@ -1295,6 +1463,38 @@ class HistoriqueWindow(tk.Toplevel):
                                    lignes, total, date, pdf_path,
                                    signature_path=sp)
         return pdf_path
+
+    def _reediter(self):
+        """Rouvre un bon existant dans la fenêtre de commande pour le modifier."""
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showinfo("Sélection",
+                "Sélectionnez un bon à rééditer.", parent=self)
+            return
+        bon_id = int(sel[0])
+        bon    = next((b for b in self.bons if b[0] == bon_id), None)
+        if not bon: return
+        bid, date, cat, nom, prenom, ecrou, bat, cell, total, *rest = bon
+        utype   = rest[0] if rest else "invite"
+        lig_raw = db.get_lignes_bon(bon_id)
+        # Reconstruit le dict commande
+        commande_init = {}
+        for l in lig_raw:
+            lid, _, pid, pnom, prix, qte, total_l = l
+            commande_init[pid] = {"nom": pnom, "prix": prix,
+                                  "qte": qte, "qte_max": 99}
+        user_info = {"nom": nom, "prenom": prenom, "ecrou": ecrou,
+                     "batiment": bat, "cellule": cell}
+        sp = self._get_sig_path(utype)
+        # Supprime l'ancien bon puis ouvre la fenêtre en mode réédition
+        if messagebox.askyesno("Rééditer",
+            f"Le bon #{bon_id} sera supprimé et rouvert pour modification.\nContinuer ?",
+            parent=self):
+            db.delete_bon(bon_id)
+            self._load()
+            win = CommandeWindow(self.master, cat, user_info, utype, sp,
+                                 commande_init=commande_init)
+            win.grab_set()
 
     def _reimprimer(self):
         sel = self.tree.selection()

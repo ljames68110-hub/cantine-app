@@ -35,7 +35,24 @@ def generer_bon_pdf(categorie, nom, prenom, ecrou, batiment, cellule,
                     lignes, total, date_str, output_path, signature_path=None):
 
     c = pdfcanvas.Canvas(output_path, pagesize=A4)
-    bg = BG.get(categorie, DEFAULT_BG)
+
+    # Couleur personnalisée stockée en DB ?
+    try:
+        import database as _db
+        params = _db.get_parametres()
+        custom = params.get(f"couleur_{categorie}", "")
+        if custom and custom.startswith("#") and len(custom) in (4,7):
+            h = custom.lstrip("#")
+            if len(h) == 3:
+                h = h[0]*2 + h[1]*2 + h[2]*2
+            r = int(h[0:2],16)/255
+            g = int(h[2:4],16)/255
+            b2 = int(h[4:6],16)/255
+            bg = (r, g, b2)
+        else:
+            bg = BG.get(categorie, DEFAULT_BG)
+    except Exception:
+        bg = BG.get(categorie, DEFAULT_BG)
 
     # Fond coloré pleine page
     c.setFillColorRGB(*bg)
