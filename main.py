@@ -145,6 +145,15 @@ class LoginWindow(tk.Tk):
             w.bind("<Button-1>", lambda e, cmd=command: cmd())
             w.config(cursor="hand2")
 
+    def _demander_budget(self):
+        """Demande le budget hebdomadaire si pas encore fait cette semaine."""
+        if db.get_budget_demande():
+            return  # déjà demandé cette semaine
+        budget, _ = db.get_budget_semaine()
+        win = BudgetWindow(self, budget)
+        win.grab_set()
+        self.wait_window(win)
+
     def _login_yoann(self):
         mdp = simpledialog.askstring("Connexion Yoann", "Mot de passe :",
                                      show="•", parent=self)
@@ -163,6 +172,7 @@ class LoginWindow(tk.Tk):
             "batiment": params.get("batiment","C"),
             "cellule":  params.get("cellule","323"),
         }
+        self._demander_budget()
         self.destroy()
 
     def _login_invite(self):
@@ -172,6 +182,7 @@ class LoginWindow(tk.Tk):
         if win.result:
             self.user_type = "invite"
             self.user_info = win.result
+            self._demander_budget()
             self.destroy()
 
 
@@ -245,6 +256,115 @@ class InviteInfoWindow(tk.Toplevel):
 
 
 # ─────────────────────────────────────────────
+# FENÊTRE BUDGET HEBDOMADAIRE
+# ─────────────────────────────────────────────
+class BudgetWindow(tk.Toplevel):
+    """Fenetre budget hebdomadaire : definir, modifier, supprimer."""
+    def __init__(self, master, budget_actuel=0):
+        super().__init__(master)
+        self.title("Budget de la semaine")
+        self.configure(bg=DARK_BG)
+        self.resizable(False, False)
+        self.geometry("420x340")
+        self._center()
+        self._build(budget_actuel)
+
+    def _center(self):
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()  - self.winfo_width())  // 2
+        y = (self.winfo_screenheight() - self.winfo_height()) // 2
+        self.geometry(f"+{x}+{y}")
+
+    def _build(self, budget_actuel):
+        from datetime import datetime, timedelta
+        today   = datetime.now()
+        lundi   = today - timedelta(days=today.weekday())
+        dim     = lundi + timedelta(days=6)
+        periode = f"{lundi.strftime('%d/%m')} — {dim.strftime('%d/%m/%Y')}"
+
+        tk.Frame(self, bg=GOLD, height=4).pack(fill="x")
+        hdr = tk.Frame(self, bg=HEADER_BG, height=48)
+        hdr.pack(fill="x"); hdr.pack_propagate(False)
+        tk.Label(hdr, text="💰  Budget de la semaine",
+                 font=("Helvetica",13,"bold"), bg=HEADER_BG, fg="white").pack(side="left", padx=16, pady=10)
+
+        body = tk.Frame(self, bg=DARK_BG, padx=30, pady=16)
+        body.pack(fill="both", expand=True)
+
+        tk.Label(body, text=f"Semaine du {periode}",
+                 font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(pady=(0,10))
+
+        # Budget actuel affiché
+        if budget_actuel > 0:
+            _, dep = db.get_budget_semaine()
+            tk.Label(body,
+                     text=f"Budget actuel : {budget_actuel:.2f} €  |  Dépensé : {dep:.2f} €",
+                     font=("Helvetica",10,"bold"), bg=DARK_BG, fg=GOLD).pack(pady=(0,8))
+
+        tk.Label(body, text="Nouveau budget (€) :",
+                 font=("Helvetica",11,"bold"), bg=DARK_BG, fg=TEXT).pack()
+
+        frm = tk.Frame(body, bg=DARK_BG)
+        frm.pack(pady=10)
+        self.budget_var = tk.StringVar(value=f"{budget_actuel:.2f}" if budget_actuel else "")
+        e = tk.Entry(frm, textvariable=self.budget_var, width=10,
+                     font=("Helvetica",14,"bold"), bg=CARD_BG, fg=GOLD,
+                     insertbackground=GOLD, bd=0, relief="flat",
+                     highlightthickness=2, highlightbackground=ACCENT,
+                     justify="center")
+        e.pack(ipady=6)
+        e.focus_set()
+        e.bind("<Return>", lambda ev: self._valider())
+
+        tk.Button(body, text="✓  Valider le budget",
+                  command=self._valider,
+                  font=("Helvetica",12,"bold"), bg=GOLD, fg="#000",
+                  bd=0, cursor="hand2", pady=9,
+                  activebackground="#d97706").pack(fill="x", pady=(8,4))
+
+        tk.Button(body, text="🗑️  Supprimer le budget",
+                  command=self._supprimer,
+                  font=("Helvetica",10), bg=DANGER, fg="white",
+                  bd=0, cursor="hand2", pady=7,
+                  activebackground="#b91c1c").pack(fill="x", pady=2)
+
+        tk.Button(body, text="Fermer sans modifier",
+                  command=self.destroy,
+                  font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED,
+                  bd=0, cursor="hand2").pack(pady=(6,0))
+
+    def _valider(self):
+        try:
+            montant = float(self.budget_var.get().replace(",","."))
+            if montant <= 0:
+                raise ValueError
+        except Exception:
+            messagebox.showwarning("Valeur invalide",
+                "Entrez un montant valide (ex: 50.00)", parent=self)
+            return
+        db.set_budget_semaine(montant)
+        db.marquer_budget_demande()
+        # Reset alertes seuil
+        db.set_parametre("alerte_budget_25", "0")
+        db.set_parametre("alerte_budget_5",  "0")
+        self.destroy()
+
+    def _supprimer(self):
+        if messagebox.askyesno("Confirmer",
+                "Supprimer le budget de la semaine ?", parent=self):
+            db.set_budget_semaine(0)
+            db.set_parametre("budget_semaine_lundi", "")
+            db.set_parametre("alerte_budget_25", "0")
+            db.set_parametre("alerte_budget_5",  "0")
+            messagebox.showinfo("Supprime", "Budget supprime.", parent=self)
+            self.destroy()
+
+    def _passer(self):
+        db.marquer_budget_demande()
+        self.destroy()
+
+
+# ─────────────────────────────────────────────
 # APPLICATION PRINCIPALE
 # ─────────────────────────────────────────────
 class CantineApp(tk.Tk):
@@ -261,6 +381,51 @@ class CantineApp(tk.Tk):
     def _on_close(self):
         if messagebox.askyesno("Quitter", "Voulez-vous quitter ?", parent=self):
             self.destroy()
+
+    def _modifier_budget(self):
+        """Ouvre la fenêtre pour modifier le budget de la semaine."""
+        budget, _ = db.get_budget_semaine()
+        win = BudgetWindow(self, budget)
+        win.grab_set()
+        self.wait_window(win)
+        self._update_budget_lbl()
+
+    def _update_budget_lbl(self):
+        """Met a jour l'affichage budget et declenche les alertes seuil."""
+        try:
+            budget, depense = db.get_budget_semaine()
+            if budget > 0:
+                restant = budget - depense
+                couleur = GOLD if restant > 25 else ("#f97316" if restant > 5 else DANGER)
+                self.budget_lbl.config(
+                    text=f"💰 Semaine : {depense:.2f}€ / {budget:.2f}€  (reste {restant:.2f}€)",
+                    fg=couleur)
+                # Alertes seuil — on ne les affiche qu'une seule fois par seuil
+                self._check_alerte_budget(restant, budget)
+            else:
+                self.budget_lbl.config(text="💰 Aucun budget defini")
+        except Exception:
+            pass
+
+    def _check_alerte_budget(self, restant, budget):
+        """Alerte a 25€ restants puis a 5€ restants."""
+        params = db.get_parametres()
+        alerte25 = params.get("alerte_budget_25", "0")
+        alerte5  = params.get("alerte_budget_5",  "0")
+
+        if restant <= 5 and alerte5 != "1":
+            db.set_parametre("alerte_budget_5",  "1")
+            db.set_parametre("alerte_budget_25", "1")
+            messagebox.showwarning(
+                "⚠️  Budget presque epuise !",
+                f"Attention ! Il ne vous reste plus que {restant:.2f} € pour la semaine.",
+                parent=self)
+        elif restant <= 25 and alerte25 != "1":
+            db.set_parametre("alerte_budget_25", "1")
+            messagebox.showwarning(
+                "⚠️  Budget bientot atteint",
+                f"Il ne vous reste plus que {restant:.2f} € sur votre budget de {budget:.2f} €.",
+                parent=self)
 
     # ── info badge couleur selon profil ───────
     def _badge_color(self):
@@ -285,6 +450,12 @@ class CantineApp(tk.Tk):
         tk.Label(bar, text=info, font=("Helvetica",9),
                  bg=HEADER_BG, fg=self._badge_color()).pack(side="left", padx=16)
 
+        # Bandeau budget
+        self.budget_lbl = tk.Label(bar, text="",
+                 font=("Helvetica",9,"bold"), bg=HEADER_BG, fg=GOLD)
+        self.budget_lbl.pack(side="right", padx=16)
+        self._update_budget_lbl()
+
         # Boutons header
         def hbtn(parent, text, cmd, bg=HEADER_BG, fg="white"):
             b = tk.Button(parent, text=text, command=cmd,
@@ -301,6 +472,7 @@ class CantineApp(tk.Tk):
             hbtn(right, "📋 Catalogue", self._ouvrir_catalogue)
             hbtn(right, "🔑 MDP", self._changer_mdp)
 
+        hbtn(right, "💰 Budget", self._modifier_budget)
         hbtn(right, "📁 Historique", self._ouvrir_historique)
         hbtn(right, "🖨️ Tout imprimer", self._imprimer_tous_bons, bg="#7c3aed", fg="white")
         hbtn(right, "⏻ Quitter", self._on_close, bg=DANGER, fg="white")
@@ -449,7 +621,7 @@ class SignatureWindow(tk.Toplevel):
         self.title("Ma Signature")
         self.configure(bg=DARK_BG)
         self.resizable(False, False)
-        self.geometry("520x400")
+        self.geometry("520x520")
         self._center()
         self._build()
 
@@ -508,6 +680,36 @@ class SignatureWindow(tk.Toplevel):
         if self.import_path.get() and os.path.isfile(self.import_path.get()):
             self.del_btn.pack(fill="x", pady=(8,0))
 
+        # ── Taille de la signature ───────────────────────────────────────────
+        params = db.get_parametres()
+        taille_actuelle = float(params.get("signature_taille", "8.0"))
+
+        sz_frm = tk.Frame(body, bg=DARK_BG)
+        sz_frm.pack(fill="x", pady=(10,0))
+        tk.Label(sz_frm, text="Taille sur le bon :",
+                 font=("Helvetica",10,"bold"), bg=DARK_BG, fg=TEXT, anchor="w").pack(fill="x")
+
+        slider_frm = tk.Frame(sz_frm, bg=DARK_BG)
+        slider_frm.pack(fill="x", pady=4)
+        tk.Label(slider_frm, text="Petite", font=("Helvetica",8),
+                 bg=DARK_BG, fg=TEXT_MUTED).pack(side="left")
+
+        self.sig_taille_var = tk.DoubleVar(value=taille_actuelle)
+        slider = tk.Scale(slider_frm, from_=3.0, to=15.0,
+                          resolution=0.5, orient="horizontal",
+                          variable=self.sig_taille_var,
+                          bg=DARK_BG, fg=TEXT, troughcolor=CARD_BG,
+                          highlightthickness=0, length=260,
+                          command=self._update_taille)
+        slider.pack(side="left", padx=6)
+        tk.Label(slider_frm, text="Grande", font=("Helvetica",8),
+                 bg=DARK_BG, fg=TEXT_MUTED).pack(side="left")
+
+        self.taille_lbl = tk.Label(sz_frm,
+                 text=f"Largeur actuelle : {taille_actuelle:.1f} cm",
+                 font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED)
+        self.taille_lbl.pack(anchor="w")
+
         # Statut
         sig = self.import_path.get()
         status = f"✅  {os.path.basename(sig)}" if sig and os.path.isfile(sig) else "Aucune signature enregistrée"
@@ -528,6 +730,12 @@ class SignatureWindow(tk.Toplevel):
             except Exception:
                 pass
         self.preview_lbl.config(image="", text="Aucune signature importée")
+
+    def _update_taille(self, val=None):
+        """Sauvegarde la taille de signature et met à jour le label."""
+        taille = self.sig_taille_var.get()
+        db.set_parametre("signature_taille", str(round(taille, 1)))
+        self.taille_lbl.config(text=f"Largeur actuelle : {taille:.1f} cm")
 
     def _choisir_image(self):
         path = filedialog.askopenfilename(
@@ -635,7 +843,7 @@ class CommandeWindow(tk.Toplevel):
         tk.Label(sf, text="🔍", bg=PANEL_BG, fg=TEXT_MUTED,
                  font=("Helvetica",12)).grid(row=0, column=0, padx=(0,4))
         self.search_var = tk.StringVar()
-        self.search_var.trace("w", self._filter)
+        self.search_var.trace_add("write", lambda *_: self._filter())
         e = tk.Entry(sf, textvariable=self.search_var, font=("Helvetica",11),
                      bg=CARD_BG, fg=TEXT, insertbackground=TEXT, bd=0,
                      relief="flat", highlightthickness=1,
@@ -844,6 +1052,23 @@ class CommandeWindow(tk.Toplevel):
             messagebox.showwarning("Bon vide",
                 "Ajoutez au moins un produit avant de sauvegarder.", parent=self)
             return
+
+        # Vérification budget
+        total_bon = sum(d["prix"]*d["qte"] for d in self.commande.values())
+        budget, depense = db.get_budget_semaine()
+        if budget > 0:
+            restant = budget - depense
+            if total_bon > restant:
+                rep = messagebox.askyesno(
+                    "⚠️  Budget dépassé !",
+                    f"Ce bon coûte {total_bon:.2f} €\n"
+                    f"Budget restant : {restant:.2f} €\n"
+                    f"Dépassement : {total_bon - restant:.2f} €\n\n"
+                    f"Voulez-vous quand même sauvegarder ?",
+                    parent=self)
+                if not rep:
+                    return
+
         date_str = datetime.now().strftime("%d/%m/%Y")
         lignes, total = [], 0.0
         for pid, d in self.commande.items():
@@ -873,6 +1098,11 @@ class CommandeWindow(tk.Toplevel):
         except Exception as ex:
             messagebox.showerror("Erreur PDF", str(ex), parent=self)
         self._vider_sans_confirm()
+        # Rafraîchir le budget dans la fenêtre principale
+        try:
+            self.master._update_budget_lbl()
+        except Exception:
+            pass
 
     def _vider_sans_confirm(self):
         self.commande.clear()
@@ -958,10 +1188,116 @@ class ParametresWindow(tk.Toplevel):
                   font=("Helvetica",11,"bold"), bg=SUCCESS, fg="white", bd=0,
                   cursor="hand2", pady=8).pack(fill="x", pady=(20,0))
 
-        # ── Onglet 2 : Couleurs des bons ─────────────────────────────────────
+        # ── Onglet 2 : Mot de passe ──────────────────────────────────────────
+        tab_mdp = tk.Frame(nb, bg=DARK_BG)
+        nb.add(tab_mdp, text="  🔑  Mot de passe  ")
+        self._build_mdp(tab_mdp)
+
+        # ── Onglet 3 : Couleurs des bons ─────────────────────────────────────
         tab2 = tk.Frame(nb, bg=DARK_BG)
         nb.add(tab2, text="  🎨  Couleurs des bons  ")
         self._build_couleurs(tab2)
+
+    def _build_mdp(self, parent):
+        """Onglet modification/suppression mot de passe Yoann."""
+        frm = tk.Frame(parent, bg=DARK_BG, padx=30, pady=24)
+        frm.pack(fill="both", expand=True)
+
+        tk.Label(frm, text="Modifier le mot de passe",
+                 font=("Helvetica",13,"bold"), bg=DARK_BG, fg=TEXT).pack(anchor="w", pady=(0,16))
+
+        # Ancien MDP
+        row1 = tk.Frame(frm, bg=DARK_BG)
+        row1.pack(fill="x", pady=5)
+        tk.Label(row1, text="Ancien MDP :", width=16, anchor="e",
+                 font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(0,8))
+        self.old_mdp_var = tk.StringVar()
+        self.old_mdp_entry = tk.Entry(row1, textvariable=self.old_mdp_var,
+                 show="•", font=("Helvetica",11), bg=CARD_BG, fg=TEXT,
+                 insertbackground=TEXT, bd=0, relief="flat",
+                 highlightthickness=1, highlightbackground=BORDER, highlightcolor=ACCENT)
+        self.old_mdp_entry.pack(side="left", fill="x", expand=True, ipady=6)
+
+        # Nouveau MDP
+        row2 = tk.Frame(frm, bg=DARK_BG)
+        row2.pack(fill="x", pady=5)
+        tk.Label(row2, text="Nouveau MDP :", width=16, anchor="e",
+                 font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(0,8))
+        self.new_mdp_var = tk.StringVar()
+        self.new_mdp_entry = tk.Entry(row2, textvariable=self.new_mdp_var,
+                 show="•", font=("Helvetica",11), bg=CARD_BG, fg=TEXT,
+                 insertbackground=TEXT, bd=0, relief="flat",
+                 highlightthickness=1, highlightbackground=BORDER, highlightcolor=ACCENT)
+        self.new_mdp_entry.pack(side="left", fill="x", expand=True, ipady=6)
+
+        # Confirmer MDP
+        row3 = tk.Frame(frm, bg=DARK_BG)
+        row3.pack(fill="x", pady=5)
+        tk.Label(row3, text="Confirmer MDP :", width=16, anchor="e",
+                 font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(0,8))
+        self.conf_mdp_var = tk.StringVar()
+        self.conf_mdp_entry = tk.Entry(row3, textvariable=self.conf_mdp_var,
+                 show="•", font=("Helvetica",11), bg=CARD_BG, fg=TEXT,
+                 insertbackground=TEXT, bd=0, relief="flat",
+                 highlightthickness=1, highlightbackground=BORDER, highlightcolor=ACCENT)
+        self.conf_mdp_entry.pack(side="left", fill="x", expand=True, ipady=6)
+
+        # Afficher/masquer
+        self.show_mdp = tk.BooleanVar(value=False)
+        tk.Checkbutton(frm, text="Afficher le mot de passe",
+                       variable=self.show_mdp, command=self._toggle_show_mdp,
+                       bg=DARK_BG, fg=TEXT_MUTED, activebackground=DARK_BG,
+                       selectcolor=CARD_BG, font=("Helvetica",9)).pack(anchor="w", pady=(4,12))
+
+        tk.Button(frm, text="💾  Modifier le mot de passe",
+                  command=self._changer_mdp_params,
+                  font=("Helvetica",11,"bold"), bg=ACCENT, fg="white", bd=0,
+                  cursor="hand2", pady=8, activebackground=ACCENT_HOV).pack(fill="x", pady=2)
+
+        tk.Frame(frm, bg=BORDER, height=1).pack(fill="x", pady=14)
+
+        # Supprimer MDP (remettre à vide = aucun mot de passe)
+        tk.Label(frm, text="Supprimer le mot de passe",
+                 font=("Helvetica",11,"bold"), bg=DARK_BG, fg=TEXT).pack(anchor="w", pady=(0,6))
+        tk.Label(frm,
+                 text="Sans mot de passe, la connexion Yoann se fera directement.",
+                 font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED, justify="left").pack(anchor="w")
+        tk.Button(frm, text="🗑️  Supprimer le mot de passe",
+                  command=self._supprimer_mdp,
+                  font=("Helvetica",10), bg=DANGER, fg="white", bd=0,
+                  cursor="hand2", pady=7, activebackground="#b91c1c").pack(fill="x", pady=(8,0))
+
+    def _toggle_show_mdp(self):
+        show = "" if self.show_mdp.get() else "•"
+        self.old_mdp_entry.config(show=show)
+        self.new_mdp_entry.config(show=show)
+        self.conf_mdp_entry.config(show=show)
+
+    def _changer_mdp_params(self):
+        old = self.old_mdp_var.get()
+        new = self.new_mdp_var.get()
+        conf = self.conf_mdp_var.get()
+        role = db.verifier_utilisateur("yoann", old)
+        if not role:
+            messagebox.showerror("Erreur", "Ancien mot de passe incorrect.", parent=self)
+            return
+        if not new:
+            messagebox.showwarning("Vide", "Le nouveau mot de passe ne peut pas être vide.", parent=self)
+            return
+        if new != conf:
+            messagebox.showerror("Erreur", "Les mots de passe ne correspondent pas.", parent=self)
+            return
+        db.changer_mot_de_passe("yoann", new)
+        messagebox.showinfo("Succès", "Mot de passe modifié avec succès !", parent=self)
+        self.old_mdp_var.set("")
+        self.new_mdp_var.set("")
+        self.conf_mdp_var.set("")
+
+    def _supprimer_mdp(self):
+        if messagebox.askyesno("Confirmer",
+                "Supprimer le mot de passe ? La connexion Yoann se fera sans saisie.", parent=self):
+            db.changer_mot_de_passe("yoann", "")
+            messagebox.showinfo("Supprime", "Mot de passe supprime.", parent=self)
 
     def _build_couleurs(self, parent):
         """Palette de couleurs pour personnaliser chaque catégorie."""
@@ -1134,10 +1470,10 @@ class CatalogueWindow(tk.Toplevel):
         ttk.Combobox(fbar, textvariable=self.cat_var, values=cats,
                      state="readonly", width=20,
                      font=("Helvetica",10)).pack(side="left", padx=4)
-        self.cat_var.trace("w", lambda *_: self._load())
+        self.cat_var.trace_add("write", lambda *_: self._load())
         tk.Label(fbar, text="🔍", bg=PANEL_BG, fg=TEXT_MUTED).pack(side="left", padx=(14,2))
         self.search_var = tk.StringVar()
-        self.search_var.trace("w", lambda *_: self._load())
+        self.search_var.trace_add("write", lambda *_: self._load())
         tk.Entry(fbar, textvariable=self.search_var, font=("Helvetica",10),
                  bg=CARD_BG, fg=TEXT, insertbackground=TEXT, bd=0,
                  relief="flat", highlightthickness=1,

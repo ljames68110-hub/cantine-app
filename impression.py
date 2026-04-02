@@ -73,25 +73,32 @@ def generer_bon_pdf(categorie, nom, prenom, ecrou, batiment, cellule,
 
     y = H - 1.55 * cm
 
-    # ── LIGNE 1 : NOM [val]   ECROU [val] ───────────────────────────────────
+    # Décalages fixes alignés
+    OFF_NOM      = c.stringWidth("NOM",      BOLD, LBL) + 10
+    OFF_ECROU    = c.stringWidth("ECROU",    BOLD, LBL) + 10
+    OFF_PRENOM   = c.stringWidth("PRENOM",   BOLD, LBL) + 10
+    OFF_BATIMENT = c.stringWidth("BATIMENT", BOLD, LBL) + 10
+    OFF_CELLULE  = c.stringWidth("CELLULE",  BOLD, LBL) + 10
+
+    # ── LIGNE 1 : NOM [val]   ECROU [val] ────────────────────────────────────
     c.setFont(BOLD, LBL)
     c.drawString(X_NOM,   y, "NOM")
     c.drawString(X_ECROU, y, "ECROU")
     c.setFont(NORM, VAL)
-    c.drawString(X_NOM   + c.stringWidth("NOM",   BOLD, LBL) + 8, y, (nom   or "").upper())
-    c.drawString(X_ECROU + c.stringWidth("ECROU", BOLD, LBL) + 8, y, str(ecrou or ""))
+    c.drawString(X_NOM   + OFF_NOM,   y, (nom   or "").upper())
+    c.drawString(X_ECROU + OFF_ECROU, y, str(ecrou or ""))
 
     y -= 1.10 * cm
 
-    # ── LIGNE 2 : PRENOM [val]  BATIMENT [val]  CELLULE [val] ───────────────
+    # ── LIGNE 2 : PRENOM [val]  BATIMENT [val]  CELLULE [val] ────────────────
     c.setFont(BOLD, LBL)
     c.drawString(X_PRENOM,   y, "PRENOM")
     c.drawString(X_BATIMENT, y, "BATIMENT")
     c.drawString(X_CELLULE,  y, "CELLULE")
     c.setFont(NORM, VAL)
-    c.drawString(X_PRENOM   + c.stringWidth("PRENOM",   BOLD, LBL) + 8, y, str(prenom   or ""))
-    c.drawString(X_BATIMENT + c.stringWidth("BATIMENT", BOLD, LBL) + 8, y, str(batiment or ""))
-    c.drawString(X_CELLULE  + c.stringWidth("CELLULE",  BOLD, LBL) + 8, y, str(cellule  or ""))
+    c.drawString(X_PRENOM   + OFF_PRENOM,   y, str(prenom   or ""))
+    c.drawString(X_BATIMENT + OFF_BATIMENT, y, str(batiment or ""))
+    c.drawString(X_CELLULE  + OFF_CELLULE,  y, str(cellule  or ""))
 
     y -= 1.05 * cm
 
@@ -151,17 +158,24 @@ def generer_bon_pdf(categorie, nom, prenom, ecrou, batiment, cellule,
         y -= ROW_H
 
     # ── DATE / SIGNATURE ─────────────────────────────────────────────────────
-    DATE_Y = 0.85 * cm     # ligne texte en bas
+    DATE_Y = 0.85 * cm
     SIG_X  = ML + PW * 0.42
-    SIG_H  = 2.0 * cm
 
-    # Signature AU-DESSUS du label "Date / Signature"
+    # Taille signature lue en DB (défaut 8 cm)
+    try:
+        import database as _db2
+        _sz   = float(_db2.get_parametres().get("signature_taille", "8.0"))
+        SIG_W = max(3.0, min(15.0, _sz)) * cm
+    except Exception:
+        SIG_W = 8.0 * cm
+    SIG_H = SIG_W * 0.28
+
     if signature_path and os.path.isfile(signature_path):
         try:
             c.drawImage(signature_path,
                         SIG_X + 2.8 * cm,
                         DATE_Y - 0.3 * cm,
-                        width=8.0 * cm, height=SIG_H,
+                        width=SIG_W, height=SIG_H,
                         preserveAspectRatio=True, mask="auto")
         except Exception:
             pass

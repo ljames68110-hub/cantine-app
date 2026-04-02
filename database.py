@@ -394,6 +394,61 @@ def get_lignes_bon(bon_id):
     conn.close()
     return result
 
+def get_budget_semaine():
+    """Retourne (budget, total_depense) pour la semaine en cours."""
+    from datetime import datetime, timedelta
+    conn = get_connection()
+    c = conn.cursor()
+    # Lundi de la semaine courante
+    today = datetime.now()
+    lundi = today - timedelta(days=today.weekday())
+    lundi_str = lundi.strftime("%d/%m/%Y")
+    dimanche = lundi + timedelta(days=6)
+    dimanche_str = dimanche.strftime("%d/%m/%Y")
+
+    # Budget stocké en paramètre
+    c.execute("SELECT valeur FROM parametres WHERE cle='budget_semaine'")
+    row = c.fetchone()
+    budget = float(row[0]) if row and row[0] else 0.0
+
+    # Total dépensé cette semaine
+    c.execute("SELECT date, total FROM bons")
+    bons = c.fetchall()
+    conn.close()
+
+    total = 0.0
+    for date_str, montant in bons:
+        try:
+            d = datetime.strptime(date_str, "%d/%m/%Y")
+            if lundi <= d <= dimanche + timedelta(hours=23):
+                total += montant
+        except:
+            pass
+    return budget, round(total, 2)
+
+def set_budget_semaine(montant):
+    set_parametre("budget_semaine", str(montant))
+
+def get_budget_demande():
+    """Retourne True si le budget a déjà été demandé cette semaine."""
+    from datetime import datetime, timedelta
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT valeur FROM parametres WHERE cle='budget_semaine_lundi'")
+    row = c.fetchone()
+    conn.close()
+    if not row or not row[0]:
+        return False
+    today = datetime.now()
+    lundi = (today - timedelta(days=today.weekday())).strftime("%d/%m/%Y")
+    return row[0] == lundi
+
+def marquer_budget_demande():
+    from datetime import datetime, timedelta
+    today = datetime.now()
+    lundi = (today - timedelta(days=today.weekday())).strftime("%d/%m/%Y")
+    set_parametre("budget_semaine_lundi", lundi)
+
 def delete_bon(bon_id):
     conn = get_connection()
     c = conn.cursor()
