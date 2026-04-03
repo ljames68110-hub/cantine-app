@@ -291,6 +291,22 @@ def init_db():
     c.execute("""CREATE TABLE IF NOT EXISTS utilisateurs (
         id INTEGER PRIMARY KEY AUTOINCREMENT, login TEXT UNIQUE,
         mot_de_passe TEXT, role TEXT)""")
+    # ── Table compte cantinable ──────────────────────────────────────
+    c.execute("""CREATE TABLE IF NOT EXISTS compte_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT,
+        label TEXT,
+        montant REAL,
+        categorie TEXT,
+        bon_id INTEGER DEFAULT NULL)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS depenses_fixes (
+        id TEXT PRIMARY KEY,
+        label TEXT,
+        montant REAL,
+        actif INTEGER DEFAULT 1)""")
+    # Dépenses fixes par défaut
+    for fid, flbl, fmnt in [("tv","Télévision",8.0),("frigo","Frigo",10.0),("telephone","Téléphone",20.0)]:
+        c.execute("INSERT OR IGNORE INTO depenses_fixes VALUES (?,?,?,1)", (fid, flbl, fmnt))
     try:
         c.execute("ALTER TABLE bons ADD COLUMN user_type TEXT DEFAULT 'invite'")
     except: pass
@@ -454,5 +470,92 @@ def delete_bon(bon_id):
     c = conn.cursor()
     c.execute("DELETE FROM lignes_bon WHERE bon_id=?", (bon_id,))
     c.execute("DELETE FROM bons WHERE id=?", (bon_id,))
+    conn.commit()
+    conn.close()
+
+
+# ─────────────────────────────────────────────
+# COMPTE CANTINABLE
+# ─────────────────────────────────────────────
+def compte_ajouter_transaction(date, label, montant, categorie, bon_id=None):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("INSERT INTO compte_transactions (date,label,montant,categorie,bon_id) VALUES (?,?,?,?,?)",
+              (date, label, montant, categorie, bon_id))
+    tid = c.lastrowid
+    conn.commit()
+    conn.close()
+    return tid
+
+def compte_modifier_transaction(tid, date, label, montant, categorie):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE compte_transactions SET date=?, label=?, montant=?, categorie=? WHERE id=?",
+              (date, label, montant, categorie, tid))
+    conn.commit()
+    conn.close()
+
+def compte_supprimer_transaction(tid):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM compte_transactions WHERE id=?", (tid,))
+    conn.commit()
+    conn.close()
+
+def compte_get_transactions(limit=500):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM compte_transactions ORDER BY date DESC, id DESC LIMIT ?", (limit,))
+    result = c.fetchall()
+    conn.close()
+    return result
+
+def compte_get_solde():
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT COALESCE(SUM(montant),0) FROM compte_transactions")
+    solde = c.fetchone()[0]
+    conn.close()
+    return round(solde, 2)
+
+def compte_get_stats():
+    """Retourne (solde, total_revenus, total_depenses, total_cantines, total_fixes)."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT COALESCE(SUM(montant),0) FROM compte_transactions")
+    solde = c.fetchone()[0]
+    c.execute("SELECT COALESCE(SUM(montant),0) FROM compte_transactions WHERE montant>0")
+    revenus = c.fetchone()[0]
+    c.execute("SELECT COALESCE(SUM(montant),0) FROM compte_transactions WHERE montant<0")
+    depenses = c.fetchone()[0]
+    c.execute("SELECT COALESCE(SUM(montant),0) FROM compte_transactions WHERE categorie='Cantine'")
+    cantines = c.fetchone()[0]
+    c.execute("SELECT COALESCE(SUM(montant),0) FROM compte_transactions WHERE categorie='Dépense fixe'")
+    fixes = c.fetchone()[0]
+    conn.close()
+    return (round(solde,2), round(revenus,2), round(depenses,2),
+            round(cantines,2), round(fixes,2))
+
+# ── Dépenses fixes ──────────────────────────
+def get_depenses_fixes():
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM depenses_fixes")
+    result = c.fetchall()
+    conn.close()
+    return result
+
+def update_depense_fixe(fid, label, montant, actif):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE depenses_fixes SET label=?, montant=?, actif=? WHERE id=?",
+              (label, montant, actif, fid))
+    conn.commit()
+    conn.close()
+
+def ajouter_depense_fixe(fid, label, montant):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO depenses_fixes VALUES (?,?,?,1)", (fid, label, montant))
     conn.commit()
     conn.close()
