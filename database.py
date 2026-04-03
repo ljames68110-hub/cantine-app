@@ -470,6 +470,8 @@ def delete_bon(bon_id):
     c = conn.cursor()
     c.execute("DELETE FROM lignes_bon WHERE bon_id=?", (bon_id,))
     c.execute("DELETE FROM bons WHERE id=?", (bon_id,))
+    # Supprimer aussi la transaction compte liée
+    c.execute("DELETE FROM compte_transactions WHERE bon_id=?", (bon_id,))
     conn.commit()
     conn.close()
 

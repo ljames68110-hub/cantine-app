@@ -1612,7 +1612,7 @@ class EditProduitWindow(tk.Toplevel):
 # COMPTE CANTINABLE
 # ─────────────────────────────────────────────
 class CompteWindow(tk.Toplevel):
-    """Gestion complète du compte cantinable : transactions, solde, dépenses fixes."""
+    """Gestion complète du compte cantinable."""
 
     CATS_DEPENSE = ["Cantine", "Dépense fixe", "Autre"]
     CATS_REVENU  = ["Revenu"]
@@ -1623,7 +1623,7 @@ class CompteWindow(tk.Toplevel):
         self.configure(bg=DARK_BG)
         self.state("zoomed")
         self._center()
-        self._current_view = "transactions"  # transactions | parametres
+        self._current_view = "transactions"
         self._build()
 
     def _center(self):
@@ -1633,7 +1633,6 @@ class CompteWindow(tk.Toplevel):
         self.geometry(f"+{x}+{y}")
 
     def _build(self):
-        # ── Header ─────────────────────────────────────────────────────────
         bar = tk.Frame(self, bg="#0c2340", height=56)
         bar.pack(fill="x")
         bar.pack_propagate(False)
@@ -1641,7 +1640,6 @@ class CompteWindow(tk.Toplevel):
         tk.Label(bar, text="🏦  COMPTE CANTINABLE",
                  font=("Helvetica",14,"bold"), bg="#0c2340", fg="white").pack(side="left", padx=18)
 
-        # Solde dans le header
         solde = db.compte_get_solde()
         s_color = SUCCESS if solde >= 0 else DANGER
         self.solde_header_lbl = tk.Label(bar, text=f"Solde : {solde:.2f} €",
@@ -1653,23 +1651,25 @@ class CompteWindow(tk.Toplevel):
                   cursor="hand2", pady=6, padx=14,
                   activebackground="#b91c1c").pack(side="right", padx=12, pady=10)
 
-        tk.Button(bar, text="⚙️  Dépenses fixes", command=self._toggle_view,
+        self.toggle_btn = tk.Button(bar, text="⚙️  Dépenses fixes",
+                  command=self._toggle_view,
                   font=("Helvetica",10), bg="#374151", fg="white", bd=0,
-                  cursor="hand2", pady=6, padx=12).pack(side="right", padx=4, pady=10)
+                  cursor="hand2", pady=6, padx=12)
+        self.toggle_btn.pack(side="right", padx=4, pady=10)
 
-        # ── Container principal ────────────────────────────────────────────
         self.main_frame = tk.Frame(self, bg=DARK_BG)
         self.main_frame.pack(fill="both", expand=True)
-
         self._build_transactions_view()
 
     def _toggle_view(self):
         if self._current_view == "transactions":
             self._current_view = "parametres"
+            self.toggle_btn.config(text="📊  Transactions")
             self._clear_main()
             self._build_parametres_view()
         else:
             self._current_view = "transactions"
+            self.toggle_btn.config(text="⚙️  Dépenses fixes")
             self._clear_main()
             self._build_transactions_view()
 
@@ -1677,82 +1677,68 @@ class CompteWindow(tk.Toplevel):
         for w in self.main_frame.winfo_children():
             w.destroy()
 
-    # ═══════════════════════════════════════════════════════════════════
-    # VUE TRANSACTIONS
-    # ═══════════════════════════════════════════════════════════════════
+    def _refresh_solde(self):
+        solde = db.compte_get_solde()
+        s_color = SUCCESS if solde >= 0 else DANGER
+        self.solde_header_lbl.config(text=f"Solde : {solde:.2f} €", fg=s_color)
+
     def _build_transactions_view(self):
         container = self.main_frame
 
-        # ── Cartes statistiques ────────────────────────────────────────
         stats_frm = tk.Frame(container, bg=DARK_BG)
         stats_frm.pack(fill="x", padx=16, pady=(12,6))
-
         solde, revenus, depenses, cantines, fixes = db.compte_get_stats()
 
-        cards_data = [
-            ("💰  Revenus",    revenus,  SUCCESS,   abs(revenus)),
-            ("📉  Dépenses",   depenses, DANGER,    abs(depenses)),
-            ("🛒  Cantines",   cantines, ACCENT,    abs(cantines)),
-            ("📌  Fixes",      fixes,    GOLD,      abs(fixes)),
-        ]
-
-        for i, (label, val, color, display_val) in enumerate(cards_data):
-            card = tk.Frame(stats_frm, bg=CARD_BG, bd=0, relief="flat",
+        for label, val, color in [
+            ("💰  Revenus",  abs(revenus),  SUCCESS),
+            ("📉  Dépenses", abs(depenses), DANGER),
+            ("🛒  Cantines", abs(cantines), ACCENT),
+            ("📌  Fixes",    abs(fixes),    GOLD),
+        ]:
+            card = tk.Frame(stats_frm, bg=CARD_BG, bd=0,
                             highlightthickness=1, highlightbackground=BORDER)
             card.pack(side="left", fill="x", expand=True, padx=4)
             tk.Label(card, text=label, font=("Helvetica",9),
                      bg=CARD_BG, fg=TEXT_MUTED, anchor="w").pack(fill="x", padx=12, pady=(8,0))
-            tk.Label(card, text=f"{display_val:.2f} €",
+            tk.Label(card, text=f"{val:.2f} €",
                      font=("Helvetica",16,"bold"), bg=CARD_BG, fg=color,
                      anchor="w").pack(fill="x", padx=12, pady=(0,8))
 
-        # ── Barre de progression ──────────────────────────────────────
         if revenus > 0:
             prog_frm = tk.Frame(container, bg=CARD_BG, bd=0,
                                 highlightthickness=1, highlightbackground=BORDER)
             prog_frm.pack(fill="x", padx=20, pady=(4,8))
-
-            pct = min(100, (abs(depenses) / revenus) * 100) if revenus > 0 else 0
-
+            pct = min(100, (abs(depenses) / revenus) * 100)
             info_bar = tk.Frame(prog_frm, bg=CARD_BG)
             info_bar.pack(fill="x", padx=12, pady=(8,2))
             tk.Label(info_bar, text=f"Dépensé : {abs(depenses):.2f} €",
                      font=("Helvetica",9), bg=CARD_BG, fg=DANGER).pack(side="left")
             tk.Label(info_bar, text=f"Disponible : {max(0,solde):.2f} €",
                      font=("Helvetica",9), bg=CARD_BG, fg=SUCCESS).pack(side="right")
-
             bar_outer = tk.Frame(prog_frm, bg="#374151", height=10)
             bar_outer.pack(fill="x", padx=12, pady=(2,10))
             bar_outer.pack_propagate(False)
-            bar_inner = tk.Frame(bar_outer, bg=DANGER if pct > 90 else (GOLD if pct > 70 else ACCENT))
+            bar_color = DANGER if pct > 90 else (GOLD if pct > 70 else ACCENT)
+            bar_inner = tk.Frame(bar_outer, bg=bar_color)
             bar_inner.place(relx=0, rely=0, relheight=1.0, relwidth=pct/100)
 
-        # ── Boutons actions ───────────────────────────────────────────
         action_bar = tk.Frame(container, bg=DARK_BG)
         action_bar.pack(fill="x", padx=16, pady=(4,4))
-
         tk.Button(action_bar, text="➕  Nouveau revenu",
                   command=lambda: self._ouvrir_form("revenu"),
                   font=("Helvetica",10,"bold"), bg=SUCCESS, fg="white", bd=0,
-                  cursor="hand2", pady=8, padx=14,
-                  activebackground="#15803d").pack(side="left", padx=(0,6))
-
+                  cursor="hand2", pady=8, padx=14).pack(side="left", padx=(0,6))
         tk.Button(action_bar, text="➖  Nouvelle dépense",
                   command=lambda: self._ouvrir_form("depense"),
                   font=("Helvetica",10,"bold"), bg=DANGER, fg="white", bd=0,
-                  cursor="hand2", pady=8, padx=14,
-                  activebackground="#b91c1c").pack(side="left", padx=(0,6))
-
+                  cursor="hand2", pady=8, padx=14).pack(side="left", padx=(0,6))
         tk.Button(action_bar, text="📌  Passer les dépenses fixes du mois",
                   command=self._ajouter_fixes_mois,
                   font=("Helvetica",10,"bold"), bg=GOLD, fg="#000", bd=0,
-                  cursor="hand2", pady=8, padx=14,
-                  activebackground="#d97706").pack(side="left", padx=(0,6))
+                  cursor="hand2", pady=8, padx=14).pack(side="left", padx=(0,6))
 
-        # Filtre
         self.filtre_var = tk.StringVar(value="Tout")
-        filtres = ["Tout", "Cantine", "Revenu", "Dépense fixe", "Autre"]
-        for f in filtres:
+        for f in ["Tout", "Cantine", "Revenu", "Dépense fixe", "Autre"]:
             tk.Radiobutton(action_bar, text=f, variable=self.filtre_var, value=f,
                            command=self._load_transactions,
                            bg=DARK_BG, fg=TEXT_MUTED, activebackground=DARK_BG,
@@ -1760,61 +1746,46 @@ class CompteWindow(tk.Toplevel):
                            indicatoron=0, bd=0, padx=10, pady=6,
                            relief="flat").pack(side="right", padx=1)
 
-        # ── Tableau des transactions ──────────────────────────────────
         tree_frm = tk.Frame(container, bg=DARK_BG)
         tree_frm.pack(fill="both", expand=True, padx=16, pady=(4,8))
         tree_frm.rowconfigure(0, weight=1)
         tree_frm.columnconfigure(0, weight=1)
 
         cols = ("id", "date", "label", "categorie", "montant")
-        self.tree = ttk.Treeview(tree_frm, columns=cols, show="headings",
-                                 selectmode="browse")
+        self.tree = ttk.Treeview(tree_frm, columns=cols, show="headings", selectmode="browse")
         for col, txt, w, anc in [
-            ("id",        "#",          50,  "center"),
-            ("date",      "Date",       100, "center"),
-            ("label",     "Libellé",    400, "w"),
-            ("categorie", "Catégorie",  130, "center"),
-            ("montant",   "Montant",    120, "center"),
+            ("id","#",50,"center"), ("date","Date",100,"center"),
+            ("label","Libellé",400,"w"), ("categorie","Catégorie",130,"center"),
+            ("montant","Montant",120,"center"),
         ]:
             self.tree.heading(col, text=txt, anchor=anc)
-            self.tree.column(col, width=w, anchor=anc,
-                             stretch=(col == "label"))
+            self.tree.column(col, width=w, anchor=anc, stretch=(col=="label"))
         sb = ttk.Scrollbar(tree_frm, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=sb.set)
         self.tree.grid(row=0, column=0, sticky="nsew")
         sb.grid(row=0, column=1, sticky="ns")
 
-        # ── Barre du bas ──────────────────────────────────────────────
         bot_bar = tk.Frame(container, bg=PANEL_BG)
         bot_bar.pack(fill="x")
-
         self.count_lbl = tk.Label(bot_bar, text="", font=("Helvetica",9),
                                    bg=PANEL_BG, fg=TEXT_MUTED)
         self.count_lbl.pack(side="left", padx=14, pady=8)
-
-        tk.Button(bot_bar, text="✏️  Modifier",
-                  command=self._modifier_tx,
+        tk.Button(bot_bar, text="✏️  Modifier", command=self._modifier_tx,
                   font=("Helvetica",10), bg=ACCENT, fg="white", bd=0,
                   cursor="hand2", pady=6, padx=12).pack(side="right", padx=6, pady=6)
-
-        tk.Button(bot_bar, text="🗑️  Supprimer",
-                  command=self._supprimer_tx,
+        tk.Button(bot_bar, text="🗑️  Supprimer", command=self._supprimer_tx,
                   font=("Helvetica",10), bg=DANGER, fg="white", bd=0,
                   cursor="hand2", pady=6, padx=12).pack(side="right", padx=2, pady=6)
 
-        # Style
-        s = ttk.Style()
-        s.theme_use("clam")
+        s = ttk.Style(); s.theme_use("clam")
         s.configure("Treeview", background=CARD_BG, foreground=TEXT,
                     fieldbackground=CARD_BG, rowheight=26, font=("Helvetica",9))
         s.configure("Treeview.Heading", background=HEADER_BG, foreground="white",
                     font=("Helvetica",9,"bold"))
         s.map("Treeview", background=[("selected", ACCENT)])
-
         self._load_transactions()
 
     def _load_transactions(self):
-        """Charge et affiche les transactions dans le treeview."""
         filtre = self.filtre_var.get()
         all_tx = db.compte_get_transactions(500)
         self.tree.delete(*self.tree.get_children())
@@ -1823,72 +1794,58 @@ class CompteWindow(tk.Toplevel):
             tid, date, label, montant, categorie, bon_id = tx
             if filtre != "Tout" and categorie != filtre:
                 continue
-            # Formatage montant avec signe et couleur via tags
             signe = "+" if montant >= 0 else ""
-            montant_str = f"{signe}{montant:.2f} €"
             tag = "revenu" if montant >= 0 else "depense"
             self.tree.insert("", "end", iid=str(tid),
-                             values=(tid, date, label, categorie, montant_str),
+                             values=(tid, date, label, categorie, f"{signe}{montant:.2f} €"),
                              tags=(tag,))
             n += 1
         self.tree.tag_configure("revenu",  foreground="#4ade80")
         self.tree.tag_configure("depense", foreground="#f87171")
         self.count_lbl.config(text=f"{n} transaction(s)")
-
-        # Rafraîchir solde header
-        solde = db.compte_get_solde()
-        s_color = SUCCESS if solde >= 0 else DANGER
-        self.solde_header_lbl.config(text=f"Solde : {solde:.2f} €", fg=s_color)
+        self._refresh_solde()
 
     def _ouvrir_form(self, mode, tx_data=None):
-        """Ouvre la fenêtre de saisie/modification de transaction."""
         win = CompteTransactionForm(self, mode, tx_data)
         win.grab_set()
         self.wait_window(win)
-        # Rafraîchir
         self._clear_main()
         self._build_transactions_view()
 
     def _modifier_tx(self):
         sel = self.tree.selection()
         if not sel:
-            messagebox.showinfo("Sélection", "Sélectionnez une transaction à modifier.", parent=self)
+            messagebox.showinfo("Sélection", "Sélectionnez une transaction.", parent=self)
             return
         tid = int(sel[0])
         all_tx = db.compte_get_transactions(500)
         tx = next((t for t in all_tx if t[0] == tid), None)
-        if not tx:
-            return
-        # tx = (id, date, label, montant, categorie, bon_id)
+        if not tx: return
         mode = "revenu" if tx[3] >= 0 else "depense"
         self._ouvrir_form(mode, tx)
 
     def _supprimer_tx(self):
         sel = self.tree.selection()
         if not sel:
-            messagebox.showinfo("Sélection", "Sélectionnez une transaction à supprimer.", parent=self)
+            messagebox.showinfo("Sélection", "Sélectionnez une transaction.", parent=self)
             return
-        tid = int(sel[0])
         if messagebox.askyesno("Confirmer", "Supprimer cette transaction ?", parent=self):
-            db.compte_supprimer_transaction(tid)
+            db.compte_supprimer_transaction(int(sel[0]))
             self._clear_main()
             self._build_transactions_view()
 
     def _ajouter_fixes_mois(self):
-        """Ajoute automatiquement toutes les dépenses fixes actives du mois."""
         fixes = db.get_depenses_fixes()
-        actives = [f for f in fixes if f[3] == 1]  # (id, label, montant, actif)
+        actives = [f for f in fixes if f[3] == 1]
         if not actives:
-            messagebox.showinfo("Aucune", "Aucune dépense fixe active.\nConfigurez-les dans ⚙️ Dépenses fixes.", parent=self)
+            messagebox.showinfo("Aucune",
+                "Aucune dépense fixe active.\nConfigurez-les dans ⚙️ Dépenses fixes.", parent=self)
             return
-
         mois_noms = ["Janvier","Février","Mars","Avril","Mai","Juin",
                      "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
-        mois = mois_noms[datetime.now().month - 1]
-        annee = datetime.now().year
-        date_str = datetime.now().strftime("%d/%m/%Y")
-
-        # Vérifier si déjà passées ce mois
+        mois   = mois_noms[datetime.now().month - 1]
+        annee  = datetime.now().year
+        date_s = datetime.now().strftime("%d/%m/%Y")
         all_tx = db.compte_get_transactions(500)
         deja = any(f"{mois} {annee}" in (t[2] or "") and t[4] == "Dépense fixe"
                    for t in all_tx)
@@ -1897,15 +1854,10 @@ class CompteWindow(tk.Toplevel):
                     f"Des dépenses fixes pour {mois} {annee} semblent déjà exister.\n"
                     "Les ajouter quand même ?", parent=self):
                 return
-
         for f in actives:
             fid, flabel, fmontant, _ = f
-            db.compte_ajouter_transaction(
-                date_str,
-                f"{flabel} — {mois} {annee}",
-                -abs(fmontant),
-                "Dépense fixe")
-
+            db.compte_ajouter_transaction(date_s, f"{flabel} — {mois} {annee}",
+                                          -abs(fmontant), "Dépense fixe")
         total = sum(f[2] for f in actives)
         messagebox.showinfo("✅ Dépenses fixes",
             f"{len(actives)} dépense(s) fixe(s) ajoutée(s) pour {mois} {annee}\n"
@@ -1913,12 +1865,8 @@ class CompteWindow(tk.Toplevel):
         self._clear_main()
         self._build_transactions_view()
 
-    # ═══════════════════════════════════════════════════════════════════
-    # VUE PARAMÈTRES (dépenses fixes)
-    # ═══════════════════════════════════════════════════════════════════
     def _build_parametres_view(self):
         container = self.main_frame
-
         tk.Label(container, text="⚙️  Gestion des dépenses fixes mensuelles",
                  font=("Helvetica",14,"bold"), bg=DARK_BG, fg=TEXT).pack(pady=(16,4))
         tk.Label(container, text="Active ou désactive chaque poste et ajuste le montant.",
@@ -1926,88 +1874,71 @@ class CompteWindow(tk.Toplevel):
 
         fixes = db.get_depenses_fixes()
         self.fix_widgets = {}
+        icons = {"tv":"📺","frigo":"❄️","telephone":"📞"}
 
         for f in fixes:
             fid, flabel, fmontant, factif = f
             row = tk.Frame(container, bg=CARD_BG, bd=0,
                            highlightthickness=1, highlightbackground=BORDER)
             row.pack(fill="x", padx=40, pady=4)
-
-            icons = {"tv": "📺", "frigo": "❄️", "telephone": "📞"}
-            icon = icons.get(fid, "📌")
-
-            tk.Label(row, text=icon, font=("Segoe UI Emoji",20),
+            tk.Label(row, text=icons.get(fid,"📌"), font=("Segoe UI Emoji",20),
                      bg=CARD_BG, fg=TEXT).pack(side="left", padx=(12,8), pady=10)
-
             info_frm = tk.Frame(row, bg=CARD_BG)
             info_frm.pack(side="left", fill="x", expand=True, pady=8)
-
             lbl_var = tk.StringVar(value=flabel)
             tk.Entry(info_frm, textvariable=lbl_var, font=("Helvetica",11,"bold"),
                      bg=CARD_BG, fg=TEXT, insertbackground=TEXT, bd=0,
-                     relief="flat", highlightthickness=0).pack(fill="x")
-
+                     highlightthickness=0).pack(fill="x")
             mnt_frm = tk.Frame(info_frm, bg=CARD_BG)
             mnt_frm.pack(fill="x", pady=(2,0))
             mnt_var = tk.StringVar(value=f"{fmontant:.2f}")
             tk.Entry(mnt_frm, textvariable=mnt_var, width=8,
                      font=("Helvetica",11), bg="#1a1f2e", fg=GOLD,
-                     insertbackground=GOLD, bd=0, relief="flat",
-                     highlightthickness=1, highlightbackground=BORDER).pack(side="left", ipady=4)
+                     insertbackground=GOLD, bd=0, highlightthickness=1,
+                     highlightbackground=BORDER).pack(side="left", ipady=4)
             tk.Label(mnt_frm, text="€ / mois", font=("Helvetica",9),
                      bg=CARD_BG, fg=TEXT_MUTED).pack(side="left", padx=6)
-
-            # Toggle actif
             actif_var = tk.BooleanVar(value=bool(factif))
-            chk = tk.Checkbutton(row, text="Actif", variable=actif_var,
-                                 bg=CARD_BG, fg=GOLD, activebackground=CARD_BG,
-                                 selectcolor="#1a1f2e", font=("Helvetica",10,"bold"))
-            chk.pack(side="right", padx=16)
-
+            tk.Checkbutton(row, text="Actif", variable=actif_var,
+                           bg=CARD_BG, fg=GOLD, activebackground=CARD_BG,
+                           selectcolor="#1a1f2e", font=("Helvetica",10,"bold")).pack(side="right", padx=16)
             self.fix_widgets[fid] = (lbl_var, mnt_var, actif_var)
 
-        # Ajouter une nouvelle dépense fixe
         add_frm = tk.Frame(container, bg=DARK_BG)
         add_frm.pack(fill="x", padx=40, pady=(12,4))
         tk.Label(add_frm, text="Ajouter :", font=("Helvetica",10,"bold"),
                  bg=DARK_BG, fg=TEXT).pack(side="left", padx=(0,8))
         self.new_fix_id = tk.StringVar()
         tk.Entry(add_frm, textvariable=self.new_fix_id, width=10,
-                 font=("Helvetica",10), bg=CARD_BG, fg=TEXT,
-                 insertbackground=TEXT, bd=0, highlightthickness=1,
-                 highlightbackground=BORDER).pack(side="left", padx=2, ipady=5)
+                 font=("Helvetica",10), bg=CARD_BG, fg=TEXT, insertbackground=TEXT,
+                 bd=0, highlightthickness=1, highlightbackground=BORDER).pack(side="left", padx=2, ipady=5)
         tk.Label(add_frm, text="ID", font=("Helvetica",8),
                  bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(2,8))
         self.new_fix_label = tk.StringVar()
         tk.Entry(add_frm, textvariable=self.new_fix_label, width=20,
-                 font=("Helvetica",10), bg=CARD_BG, fg=TEXT,
-                 insertbackground=TEXT, bd=0, highlightthickness=1,
-                 highlightbackground=BORDER).pack(side="left", padx=2, ipady=5)
+                 font=("Helvetica",10), bg=CARD_BG, fg=TEXT, insertbackground=TEXT,
+                 bd=0, highlightthickness=1, highlightbackground=BORDER).pack(side="left", padx=2, ipady=5)
         tk.Label(add_frm, text="Libellé", font=("Helvetica",8),
                  bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(2,8))
         self.new_fix_mnt = tk.StringVar(value="0.00")
         tk.Entry(add_frm, textvariable=self.new_fix_mnt, width=8,
-                 font=("Helvetica",10), bg=CARD_BG, fg=TEXT,
-                 insertbackground=TEXT, bd=0, highlightthickness=1,
-                 highlightbackground=BORDER).pack(side="left", padx=2, ipady=5)
+                 font=("Helvetica",10), bg=CARD_BG, fg=TEXT, insertbackground=TEXT,
+                 bd=0, highlightthickness=1, highlightbackground=BORDER).pack(side="left", padx=2, ipady=5)
         tk.Label(add_frm, text="€", font=("Helvetica",8),
                  bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(2,8))
         tk.Button(add_frm, text="➕ Ajouter", command=self._ajouter_fixe,
                   font=("Helvetica",9), bg=SUCCESS, fg="white", bd=0,
                   cursor="hand2", pady=5, padx=10).pack(side="left", padx=6)
 
-        # Total et boutons
         total_fixes = sum(f[2] for f in fixes if f[3])
         tk.Label(container, text=f"Total dépenses fixes actives : {total_fixes:.2f} € / mois",
                  font=("Helvetica",12,"bold"), bg=DARK_BG, fg=GOLD).pack(pady=(16,8))
-
         btn_frm = tk.Frame(container, bg=DARK_BG)
         btn_frm.pack(pady=6)
         tk.Button(btn_frm, text="💾  Enregistrer les modifications",
                   command=self._sauvegarder_fixes,
                   font=("Helvetica",11,"bold"), bg=SUCCESS, fg="white", bd=0,
-                  cursor="hand2", pady=10, padx=24,
-                  activebackground="#15803d").pack(side="left", padx=8)
+                  cursor="hand2", pady=10, padx=24).pack(side="left", padx=8)
         tk.Button(btn_frm, text="↩️  Retour aux transactions",
                   command=self._toggle_view,
                   font=("Helvetica",10), bg="#374151", fg=TEXT, bd=0,
@@ -2016,7 +1947,7 @@ class CompteWindow(tk.Toplevel):
     def _sauvegarder_fixes(self):
         for fid, (lbl_var, mnt_var, actif_var) in self.fix_widgets.items():
             try:
-                mnt = float(mnt_var.get().replace(",", "."))
+                mnt = float(mnt_var.get().replace(",","."))
             except:
                 mnt = 0.0
             db.update_depense_fixe(fid, lbl_var.get().strip(), mnt, 1 if actif_var.get() else 0)
@@ -2026,7 +1957,7 @@ class CompteWindow(tk.Toplevel):
         fid = self.new_fix_id.get().strip().lower()
         flabel = self.new_fix_label.get().strip()
         try:
-            fmnt = float(self.new_fix_mnt.get().replace(",", "."))
+            fmnt = float(self.new_fix_mnt.get().replace(",","."))
         except:
             messagebox.showwarning("Erreur", "Montant invalide.", parent=self)
             return
@@ -2043,11 +1974,9 @@ class CompteTransactionForm(tk.Toplevel):
     """Formulaire ajout / modification d'une transaction du compte."""
     def __init__(self, master, mode, tx_data=None):
         super().__init__(master)
-        self.master_compte = master
-        self.mode = mode          # "revenu" | "depense"
-        self.tx_data = tx_data    # None = ajout, sinon tuple existant
+        self.mode = mode
+        self.tx_data = tx_data
         self.is_edit = tx_data is not None
-
         title = "Modifier la transaction" if self.is_edit else (
             "💰  Nouveau revenu" if mode == "revenu" else "➖  Nouvelle dépense")
         self.title(title)
@@ -2065,63 +1994,50 @@ class CompteTransactionForm(tk.Toplevel):
 
     def _build(self):
         accent = SUCCESS if self.mode == "revenu" else DANGER
-
         tk.Frame(self, bg=accent, height=4).pack(fill="x")
         hdr = tk.Frame(self, bg=HEADER_BG, height=46)
-        hdr.pack(fill="x")
-        hdr.pack_propagate(False)
+        hdr.pack(fill="x"); hdr.pack_propagate(False)
         icon = "💰" if self.mode == "revenu" else "➖"
         hdr_text = "Modifier la transaction" if self.is_edit else (
-            f"{icon}  Nouveau {'revenu' if self.mode == 'revenu' else 'dépense'}")
-        tk.Label(hdr, text=hdr_text,
-                 font=("Helvetica",12,"bold"), bg=HEADER_BG, fg="white").pack(side="left", padx=14, pady=10)
+            f"{icon}  {'Nouveau revenu' if self.mode == 'revenu' else 'Nouvelle dépense'}")
+        tk.Label(hdr, text=hdr_text, font=("Helvetica",12,"bold"),
+                 bg=HEADER_BG, fg="white").pack(side="left", padx=14, pady=10)
 
         frm = tk.Frame(self, bg=DARK_BG, padx=30, pady=20)
         frm.pack(fill="both", expand=True)
 
-        # Date
-        row_d = tk.Frame(frm, bg=DARK_BG)
-        row_d.pack(fill="x", pady=6)
+        row_d = tk.Frame(frm, bg=DARK_BG); row_d.pack(fill="x", pady=6)
         tk.Label(row_d, text="Date :", width=12, anchor="e",
                  font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(0,8))
-        default_date = self.tx_data[1] if self.is_edit else datetime.now().strftime("%d/%m/%Y")
-        self.date_var = tk.StringVar(value=default_date)
+        self.date_var = tk.StringVar(
+            value=self.tx_data[1] if self.is_edit else datetime.now().strftime("%d/%m/%Y"))
         tk.Entry(row_d, textvariable=self.date_var, font=("Helvetica",11),
                  bg=CARD_BG, fg=TEXT, insertbackground=TEXT, bd=0,
                  highlightthickness=1, highlightbackground=BORDER,
                  highlightcolor=ACCENT).pack(side="left", fill="x", expand=True, ipady=7)
 
-        # Libellé
-        row_l = tk.Frame(frm, bg=DARK_BG)
-        row_l.pack(fill="x", pady=6)
+        row_l = tk.Frame(frm, bg=DARK_BG); row_l.pack(fill="x", pady=6)
         tk.Label(row_l, text="Libellé :", width=12, anchor="e",
                  font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(0,8))
-        default_label = self.tx_data[2] if self.is_edit else ""
-        self.label_var = tk.StringVar(value=default_label)
+        self.label_var = tk.StringVar(value=self.tx_data[2] if self.is_edit else "")
         tk.Entry(row_l, textvariable=self.label_var, font=("Helvetica",11),
                  bg=CARD_BG, fg=TEXT, insertbackground=TEXT, bd=0,
                  highlightthickness=1, highlightbackground=BORDER,
                  highlightcolor=ACCENT).pack(side="left", fill="x", expand=True, ipady=7)
 
-        # Catégorie
-        row_c = tk.Frame(frm, bg=DARK_BG)
-        row_c.pack(fill="x", pady=6)
+        row_c = tk.Frame(frm, bg=DARK_BG); row_c.pack(fill="x", pady=6)
         tk.Label(row_c, text="Catégorie :", width=12, anchor="e",
                  font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(0,8))
         cats = CompteWindow.CATS_REVENU if self.mode == "revenu" else CompteWindow.CATS_DEPENSE
-        default_cat = self.tx_data[4] if self.is_edit else cats[0]
-        self.cat_var = tk.StringVar(value=default_cat)
+        self.cat_var = tk.StringVar(value=self.tx_data[4] if self.is_edit else cats[0])
         ttk.Combobox(row_c, textvariable=self.cat_var, values=cats,
-                     state="readonly", font=("Helvetica",10)).pack(
-                         side="left", fill="x", expand=True)
+                     state="readonly", font=("Helvetica",10)).pack(side="left", fill="x", expand=True)
 
-        # Montant
-        row_m = tk.Frame(frm, bg=DARK_BG)
-        row_m.pack(fill="x", pady=6)
+        row_m = tk.Frame(frm, bg=DARK_BG); row_m.pack(fill="x", pady=6)
         tk.Label(row_m, text="Montant (€) :", width=12, anchor="e",
                  font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(0,8))
-        default_mnt = f"{abs(self.tx_data[3]):.2f}" if self.is_edit else ""
-        self.mnt_var = tk.StringVar(value=default_mnt)
+        self.mnt_var = tk.StringVar(
+            value=f"{abs(self.tx_data[3]):.2f}" if self.is_edit else "")
         e = tk.Entry(row_m, textvariable=self.mnt_var, font=("Helvetica",14,"bold"),
                  bg=CARD_BG, fg=accent, insertbackground=accent, bd=0,
                  highlightthickness=2, highlightbackground=accent,
@@ -2129,19 +2045,14 @@ class CompteTransactionForm(tk.Toplevel):
         e.pack(side="left", fill="x", expand=True, ipady=8)
         e.focus_set()
 
-        # Boutons
-        btn_frm = tk.Frame(frm, bg=DARK_BG)
-        btn_frm.pack(fill="x", pady=(16,0))
-
+        btn_frm = tk.Frame(frm, bg=DARK_BG); btn_frm.pack(fill="x", pady=(16,0))
         tk.Button(btn_frm, text="Annuler", command=self.destroy,
                   font=("Helvetica",10), bg="#374151", fg=TEXT, bd=0,
                   cursor="hand2", pady=8, padx=16).pack(side="left", fill="x", expand=True, padx=(0,4))
-
-        save_text = "💾  Enregistrer" if self.is_edit else "✓  Ajouter"
-        tk.Button(btn_frm, text=save_text, command=self._sauvegarder,
+        tk.Button(btn_frm, text="💾  Enregistrer" if self.is_edit else "✓  Ajouter",
+                  command=self._sauvegarder,
                   font=("Helvetica",11,"bold"), bg=accent, fg="white", bd=0,
-                  cursor="hand2", pady=8, padx=16,
-                  activebackground=ACCENT_HOV).pack(side="left", fill="x", expand=True, padx=(4,0))
+                  cursor="hand2", pady=8, padx=16).pack(side="left", fill="x", expand=True, padx=(4,0))
 
     def _sauvegarder(self):
         label = self.label_var.get().strip()
@@ -2149,27 +2060,21 @@ class CompteTransactionForm(tk.Toplevel):
             messagebox.showwarning("Champ manquant", "Renseignez le libellé.", parent=self)
             return
         try:
-            montant = float(self.mnt_var.get().replace(",", "."))
-            if montant <= 0:
-                raise ValueError
+            montant = float(self.mnt_var.get().replace(",","."))
+            if montant <= 0: raise ValueError
         except:
             messagebox.showwarning("Montant invalide", "Entrez un montant positif.", parent=self)
             return
-
-        date = self.date_var.get().strip()
-        cat = self.cat_var.get()
-
-        # Appliquer le signe
         if self.mode == "depense":
             montant = -abs(montant)
         else:
             montant = abs(montant)
-
+        date = self.date_var.get().strip()
+        cat  = self.cat_var.get()
         if self.is_edit:
             db.compte_modifier_transaction(self.tx_data[0], date, label, montant, cat)
         else:
             db.compte_ajouter_transaction(date, label, montant, cat)
-
         self.destroy()
 
 

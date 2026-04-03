@@ -27,12 +27,92 @@ jobs:
       - name: Build Cantine.exe
         run: python -m PyInstaller --onefile --windowed --name "Cantine" --icon "cantine.ico" --add-data "cantine.ico;." main.py
 
-      - name: Install NSIS
-        run: choco install nsis --yes --no-progress
+      - name: Verify Cantine.exe
+        run: |
+          if (!(Test-Path "dist\Cantine.exe")) { throw "Cantine.exe introuvable" }
+          $size = [math]::Round((Get-Item 'dist\Cantine.exe').Length / 1MB, 1)
+          Write-Host "Cantine.exe OK ($size MB)"
 
-      - name: Build CantineSetup.exe
-        shell: cmd
-        run: '"C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi'
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          $nsisLocations = @(
+            "C:\Program Files (x86)\NSIS\makensis.exe",
+            "C:\Program Files\NSIS\makensis.exe"
+          )
+
+          function Find-NSIS {
+            foreach ($p in $nsisLocations) {
+              if (Test-Path $p) { return $p }
+            }
+            return $null
+          }
+
+          # Methode 1 : Chocolatey (timeout etendu)
+          Write-Host "=== Methode 1 : Chocolatey ===" -ForegroundColor Cyan
+          try {
+            choco install nsis --yes --no-progress --timeout 600 2>&1
+          } catch {
+            Write-Host "Chocolatey a echoue: $_" -ForegroundColor Yellow
+          }
+
+          $nsis = Find-NSIS
+          if ($nsis) {
+            Write-Host "NSIS trouve: $nsis" -ForegroundColor Green
+            "NSIS_PATH=$nsis" | Out-File -FilePath $env:GITHUB_ENV -Append
+            exit 0
+          }
+
+          # Methode 2 : Telechargement direct depuis SourceForge
+          Write-Host "=== Methode 2 : Telechargement direct ===" -ForegroundColor Cyan
+          try {
+            $url = "https://sourceforge.net/projects/nsis/files/NSIS%203/3.10/nsis-3.10-setup.exe/download"
+            $installer = "$env:TEMP\nsis-setup.exe"
+            Write-Host "Telechargement NSIS 3.10..."
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            Invoke-WebRequest -Uri $url -OutFile $installer -MaximumRedirection 10 -UseBasicParsing
+            Write-Host "Installation silencieuse..."
+            Start-Process -FilePath $installer -ArgumentList "/S" -Wait -NoNewWindow
+            Start-Sleep -Seconds 5
+          } catch {
+            Write-Host "Telechargement direct a echoue: $_" -ForegroundColor Yellow
+          }
+
+          $nsis = Find-NSIS
+          if ($nsis) {
+            Write-Host "NSIS trouve: $nsis" -ForegroundColor Green
+            "NSIS_PATH=$nsis" | Out-File -FilePath $env:GITHUB_ENV -Append
+            exit 0
+          }
+
+          # Methode 3 : NSIS portable (ZIP sans installation)
+          Write-Host "=== Methode 3 : NSIS portable ===" -ForegroundColor Cyan
+          try {
+            $zipUrl = "https://sourceforge.net/projects/nsis/files/NSIS%203/3.10/nsis-3.10.zip/download"
+            $zipFile = "$env:TEMP\nsis.zip"
+            $extractDir = "$env:TEMP\nsis-3.10"
+            Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile -MaximumRedirection 10 -UseBasicParsing
+            Expand-Archive -Path $zipFile -DestinationPath $env:TEMP -Force
+            $portable = "$extractDir\makensis.exe"
+            if (Test-Path $portable) {
+              Write-Host "NSIS portable trouve: $portable" -ForegroundColor Green
+              "NSIS_PATH=$portable" | Out-File -FilePath $env:GITHUB_ENV -Append
+              exit 0
+            }
+          } catch {
+            Write-Host "NSIS portable a echoue: $_" -ForegroundColor Yellow
+          }
+
+          throw "Impossible d'installer NSIS avec aucune methode"
+
+      - name: Generate CantineSetup.exe
+        shell: pwsh
+        run: |
+          Write-Host "Utilisation de: $env:NSIS_PATH"
+          & "$env:NSIS_PATH" installer.nsi
+          if (!(Test-Path "CantineSetup.exe")) { throw "CantineSetup.exe non genere" }
+          $size = [math]::Round((Get-Item 'CantineSetup.exe').Length / 1MB, 1)
+          Write-Host "CantineSetup.exe OK ($size MB)"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -41,8 +121,13 @@ jobs:
           body: |
             ## Gestion de Cantine ${{ github.ref_name }}
 
-            1. Telechargez CantineSetup.exe
-            2. Double-cliquez
-            3. Suivez l installation
-            4. Mot de passe : 1234
+            ### Nouveautes
+            - Module Compte Cantinable (gestion revenus/depenses)
+            - Depenses fixes automatiques (TV, Frigo, Telephone)
+            - Auto-deduction des cantines sur le compte
+
+            ### Installation
+            1. Telechargez **CantineSetup.exe**
+            2. Double-cliquez pour installer
+            3. Mot de passe : **1234**
           files: CantineSetup.exe
