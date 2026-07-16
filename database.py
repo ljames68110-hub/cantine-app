@@ -320,7 +320,8 @@ def init_db():
     # Paramètres Yoann
     defaults = [("nom","LUTZ"),("prenom","Yoann"),("ecrou","9283"),
                 ("batiment","C"),("cellule","323"),("signature_path",""),
-                ("maj_source","github"),("maj_chemin","")]
+                ("maj_source","github"),("maj_chemin",""),
+                ("bon_sans_identite","0")]
     for k, v in defaults:
         c.execute("INSERT OR IGNORE INTO parametres VALUES (?,?)", (k, v))
     conn.commit()

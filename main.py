@@ -56,6 +56,15 @@ def _open_file(path):
         messagebox.showinfo("PDF généré", f"Fichier : {path}")
 
 
+def _identite_bon(nom, prenom, ecrou, batiment, cellule, date_str):
+    """Retourne les champs d'identité/date tels quels, ou vides si le mode
+    'bon sans info détenu' est actif dans les paramètres. Le contenu du bon
+    (articles, quantités, total) n'est jamais affecté par ce mode."""
+    if db.get_parametres().get("bon_sans_identite", "0") == "1":
+        return "", "", "", "", "", ""
+    return nom, prenom, ecrou, batiment, cellule, date_str
+
+
 # ─────────────────────────────────────────────
 # MISES À JOUR — fonctions partagées (Paramètres + bouton rapide)
 # ─────────────────────────────────────────────
@@ -686,8 +695,10 @@ class CantineApp(tk.Tk):
             sp       = sig_path if utype == "yoann" else None
             pdf_path = os.path.join(pdf_dir, f"bon_{bid}_{cat}.pdf")
             try:
-                impression.generer_bon_pdf(cat, nom, prenom, ecrou, bat, cell,
-                                           lignes, total, date, pdf_path,
+                nom_p, prenom_p, ecrou_p, bat_p, cell_p, date_p = _identite_bon(
+                    nom, prenom, ecrou, bat, cell, date)
+                impression.generer_bon_pdf(cat, nom_p, prenom_p, ecrou_p, bat_p, cell_p,
+                                           lignes, total, date_p, pdf_path,
                                            signature_path=sp)
                 pdfs.append(pdf_path)
             except Exception as ex:
@@ -1195,9 +1206,10 @@ class CommandeWindow(tk.Toplevel):
         fname    = f"bon_{self.categorie}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         pdf_path = os.path.join(pdf_dir, fname)
         try:
+            nom_p, prenom_p, ecrou_p, bat_p, cell_p, date_p = _identite_bon(
+                ui["nom"], ui["prenom"], ui["ecrou"], ui["batiment"], ui["cellule"], date_str)
             impression.generer_bon_pdf(
-                self.categorie, ui["nom"], ui["prenom"], ui["ecrou"],
-                ui["batiment"], ui["cellule"], lignes, total, date_str,
+                self.categorie, nom_p, prenom_p, ecrou_p, bat_p, cell_p, lignes, total, date_p,
                 pdf_path, signature_path=self.sig_path)
             rep = messagebox.askyesno("✅  Bon sauvegardé",
                 f"Bon #{bon_id} enregistré !\n\nOuvrir le PDF maintenant ?",
@@ -1311,6 +1323,49 @@ class ParametresWindow(tk.Toplevel):
         tab_maj = tk.Frame(nb, bg=DARK_BG)
         nb.add(tab_maj, text="  🔄  Mises à jour  ")
         self._build_maj(tab_maj, params)
+
+        # ── Onglet 5 : Impression ───────────────────────────────────────
+        tab_impr = tk.Frame(nb, bg=DARK_BG)
+        nb.add(tab_impr, text="  🖨️  Impression  ")
+        self._build_impression(tab_impr, params)
+
+    def _build_impression(self, parent, params):
+        """Onglet pour activer le mode d'impression des bons sans info détenu."""
+        frm = tk.Frame(parent, bg=DARK_BG, padx=30, pady=24)
+        frm.pack(fill="both", expand=True)
+
+        tk.Label(frm, text="Confidentialité des bons imprimés",
+                 font=("Helvetica",13,"bold"), bg=DARK_BG, fg=TEXT).pack(anchor="w", pady=(0,12))
+
+        self.sans_identite_var = tk.BooleanVar(
+            value=params.get("bon_sans_identite","0") == "1")
+        tk.Checkbutton(frm,
+            text="Générer les bons sans informations détenu\n"
+                 "(nom, prénom, écrou, bâtiment, cellule et date laissés vides)",
+            variable=self.sans_identite_var,
+            bg=DARK_BG, fg=TEXT, activebackground=DARK_BG, activeforeground=TEXT,
+            selectcolor=CARD_BG, font=("Helvetica",10,"bold"),
+            anchor="w", justify="left").pack(fill="x", pady=(0,10))
+
+        tk.Label(frm,
+            text="Le tableau des articles, les quantités et le total restent "
+                 "toujours affichés normalement — seule l'identité est masquée "
+                 "sur le PDF imprimé. Les enregistrements internes (historique, "
+                 "budget, compte cantinable) ne sont pas affectés.\n\n"
+                 "S'applique à tous les bons imprimés : nouveau bon, "
+                 "\"Tout imprimer\" et réimpression depuis l'historique.",
+            font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
+            wraplength=560, justify="left").pack(anchor="w", pady=(0,18))
+
+        tk.Button(frm, text="💾  Enregistrer", command=self._sauvegarder_impression,
+                  font=("Helvetica",11,"bold"), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=8).pack(fill="x")
+
+    def _sauvegarder_impression(self):
+        db.set_parametre("bon_sans_identite",
+                         "1" if self.sans_identite_var.get() else "0")
+        messagebox.showinfo("Enregistré",
+            "Paramètre d'impression enregistré.", parent=self)
 
     def _build_maj(self, parent, params):
         """Onglet de configuration et de vérification des mises à jour."""
@@ -2460,8 +2515,10 @@ class HistoriqueWindow(tk.Toplevel):
         sp       = self._get_sig_path(utype)
         pdf_path = os.path.join(pdf_dir,
                                 f"bon_{bid}_{cat.replace(' ','_').replace('&','et')}.pdf")
-        impression.generer_bon_pdf(cat, nom, prenom, ecrou, bat, cell,
-                                   lignes, total, date, pdf_path,
+        nom_p, prenom_p, ecrou_p, bat_p, cell_p, date_p = _identite_bon(
+            nom, prenom, ecrou, bat, cell, date)
+        impression.generer_bon_pdf(cat, nom_p, prenom_p, ecrou_p, bat_p, cell_p,
+                                   lignes, total, date_p, pdf_path,
                                    signature_path=sp)
         return pdf_path
 
