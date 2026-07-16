@@ -319,7 +319,8 @@ def init_db():
         c.executemany("INSERT INTO produits VALUES (?,?,?,?,?,?)", PRODUITS_INITIAUX)
     # Paramètres Yoann
     defaults = [("nom","LUTZ"),("prenom","Yoann"),("ecrou","9283"),
-                ("batiment","C"),("cellule","323"),("signature_path","")]
+                ("batiment","C"),("cellule","323"),("signature_path",""),
+                ("maj_source","github"),("maj_chemin","")]
     for k, v in defaults:
         c.execute("INSERT OR IGNORE INTO parametres VALUES (?,?)", (k, v))
     conn.commit()

@@ -14,6 +14,7 @@ a = Analysis(
     hiddenimports=[
         'database',
         'impression',
+        'updater',
         'tkinter',
         'tkinter.ttk',
         'tkinter.messagebox',

@@ -1,9 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog
-import os, sys, subprocess, platform, shutil
+import os, sys, subprocess, platform, shutil, threading
 from datetime import datetime
 import database as db
 import impression
+import updater
 
 # ─────────────────────────────────────────────
 # THEME
@@ -53,6 +54,80 @@ def _open_file(path):
             subprocess.run(["xdg-open", path])
     except:
         messagebox.showinfo("PDF généré", f"Fichier : {path}")
+
+
+# ─────────────────────────────────────────────
+# MISES À JOUR — fonctions partagées (Paramètres + bouton rapide)
+# ─────────────────────────────────────────────
+def _verifier_maj_async(parent, source, chemin, status_cb=None, silencieux=False):
+    """Lance la vérification de mise à jour en tâche de fond (ne bloque pas l'UI)."""
+    def worker():
+        try:
+            info = updater.verifier_maj(source, chemin)
+        except updater.UpdaterError as e:
+            if not silencieux:
+                parent.after(0, lambda: _maj_signaler_erreur(parent, status_cb, str(e)))
+            return
+        except Exception as e:
+            if not silencieux:
+                parent.after(0, lambda: _maj_signaler_erreur(parent, status_cb, f"Erreur inattendue : {e}"))
+            return
+        parent.after(0, lambda: _maj_traiter_resultat(parent, info, status_cb, silencieux))
+    threading.Thread(target=worker, daemon=True).start()
+
+
+def _maj_signaler_erreur(parent, status_cb, msg):
+    if status_cb:
+        status_cb("❌ " + msg, DANGER)
+    else:
+        messagebox.showerror("Mise à jour", msg, parent=parent)
+
+
+def _maj_traiter_resultat(parent, info, status_cb, silencieux=False):
+    if info is None:
+        txt = f"Vous avez déjà la dernière version (v{updater.APP_VERSION})."
+        if status_cb:
+            status_cb("✅ " + txt, SUCCESS)
+        elif not silencieux:
+            messagebox.showinfo("Mise à jour", txt, parent=parent)
+        return
+
+    if status_cb:
+        status_cb(f"🆕 Nouvelle version disponible : v{info['version']}", GOLD)
+
+    notes = (info.get("notes") or "").strip()
+    msg = f"Une nouvelle version (v{info['version']}) est disponible.\n"
+    if notes:
+        msg += "\n" + notes[:400] + "\n"
+    msg += "\nMettre à jour maintenant ?\nL'application va se fermer puis redémarrer."
+    if messagebox.askyesno("Mise à jour disponible", msg, parent=parent):
+        _maj_telecharger_installer(parent, info, status_cb)
+
+
+def _maj_telecharger_installer(parent, info, status_cb):
+    if status_cb:
+        status_cb("⬇️  Téléchargement en cours...", TEXT_MUTED)
+
+    def worker():
+        try:
+            chemin_installeur = updater.obtenir_installeur(info)
+            updater.appliquer_maj(chemin_installeur)
+        except updater.UpdaterError as e:
+            parent.after(0, lambda: _maj_signaler_erreur(parent, status_cb, str(e)))
+            return
+        except Exception as e:
+            parent.after(0, lambda: _maj_signaler_erreur(parent, status_cb, f"Erreur inattendue : {e}"))
+            return
+        parent.after(0, lambda: _maj_fermer_pour_installer(parent))
+    threading.Thread(target=worker, daemon=True).start()
+
+
+def _maj_fermer_pour_installer(parent):
+    messagebox.showinfo("Mise à jour",
+        "L'application va se fermer pour terminer la mise à jour.\n"
+        "Elle redémarrera automatiquement dans quelques secondes.",
+        parent=parent)
+    os._exit(0)
 
 
 # ─────────────────────────────────────────────
@@ -377,6 +452,22 @@ class CantineApp(tk.Tk):
         self.state("zoomed")
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._build()
+        if self.user_type == "yoann":
+            self.after(2500, self._verifier_maj_demarrage)
+
+    def _verifier_maj_demarrage(self):
+        """Vérification silencieuse au démarrage : ne dérange que si une
+        mise à jour est réellement disponible (aucun message si tout va bien
+        ou si la source de mise à jour est injoignable)."""
+        params = db.get_parametres()
+        _verifier_maj_async(self, params.get("maj_source", "github"),
+                             params.get("maj_chemin", ""), silencieux=True)
+
+    def _verifier_maj_manuelle(self):
+        """Vérification déclenchée depuis le bouton de l'en-tête."""
+        params = db.get_parametres()
+        _verifier_maj_async(self, params.get("maj_source", "github"),
+                             params.get("maj_chemin", ""))
 
     def _on_close(self):
         if messagebox.askyesno("Quitter", "Voulez-vous quitter ?", parent=self):
@@ -471,6 +562,7 @@ class CantineApp(tk.Tk):
             hbtn(right, "⚙️ Paramètres", self._ouvrir_parametres)
             hbtn(right, "📋 Catalogue", self._ouvrir_catalogue)
             hbtn(right, "🔑 MDP", self._changer_mdp)
+            hbtn(right, "🔄 Mises à jour", self._verifier_maj_manuelle)
 
         hbtn(right, "💰 Budget", self._modifier_budget)
         hbtn(right, "🏦 Compte", self._ouvrir_compte)
@@ -1214,6 +1306,92 @@ class ParametresWindow(tk.Toplevel):
         tab2 = tk.Frame(nb, bg=DARK_BG)
         nb.add(tab2, text="  🎨  Couleurs des bons  ")
         self._build_couleurs(tab2)
+
+        # ── Onglet 4 : Mises à jour ───────────────────────────────────────
+        tab_maj = tk.Frame(nb, bg=DARK_BG)
+        nb.add(tab_maj, text="  🔄  Mises à jour  ")
+        self._build_maj(tab_maj, params)
+
+    def _build_maj(self, parent, params):
+        """Onglet de configuration et de vérification des mises à jour."""
+        frm = tk.Frame(parent, bg=DARK_BG, padx=30, pady=20)
+        frm.pack(fill="both", expand=True)
+
+        tk.Label(frm, text=f"Version installée : v{updater.APP_VERSION}",
+                 font=("Helvetica",11,"bold"), bg=DARK_BG, fg=TEXT).pack(anchor="w", pady=(0,14))
+
+        tk.Label(frm, text="Source de mise à jour",
+                 font=("Helvetica",10,"bold"), bg=DARK_BG, fg=TEXT_MUTED).pack(anchor="w")
+
+        self.maj_source_var = tk.StringVar(value=params.get("maj_source","github"))
+        options = [
+            ("github", "🌐  Internet (GitHub)"),
+            ("reseau", "🖧  Dossier réseau partagé"),
+            ("local",  "💾  Dossier local / clé USB"),
+        ]
+        for val, label in options:
+            tk.Radiobutton(frm, text=label, value=val, variable=self.maj_source_var,
+                           command=self._maj_toggle_chemin,
+                           bg=DARK_BG, fg=TEXT, activebackground=DARK_BG, activeforeground=TEXT,
+                           selectcolor=CARD_BG, font=("Helvetica",10),
+                           anchor="w").pack(fill="x", pady=2)
+
+        row_chemin = tk.Frame(frm, bg=DARK_BG)
+        row_chemin.pack(fill="x", pady=(10,4))
+        tk.Label(row_chemin, text="Dossier :", width=12, anchor="e",
+                 font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(0,8))
+        self.maj_chemin_var = tk.StringVar(value=params.get("maj_chemin",""))
+        self.maj_chemin_entry = tk.Entry(row_chemin, textvariable=self.maj_chemin_var,
+                 font=("Helvetica",10), bg=CARD_BG, fg=TEXT, insertbackground=TEXT, bd=0,
+                 relief="flat", highlightthickness=1, highlightbackground=BORDER,
+                 highlightcolor=ACCENT)
+        self.maj_chemin_entry.pack(side="left", fill="x", expand=True, ipady=6)
+        tk.Button(row_chemin, text="…", command=self._choisir_dossier_maj,
+                  font=("Helvetica",10,"bold"), bg=CARD_BG, fg=TEXT, bd=0,
+                  cursor="hand2", padx=10).pack(side="left", padx=(6,0))
+
+        tk.Label(frm,
+                 text="Le dossier réseau/local doit contenir : version.txt et CantineSetup.exe",
+                 font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
+                 wraplength=560, justify="left").pack(anchor="w", pady=(0,14))
+
+        btn_row = tk.Frame(frm, bg=DARK_BG)
+        btn_row.pack(fill="x", pady=(6,4))
+        tk.Button(btn_row, text="💾  Enregistrer", command=self._sauvegarder_maj,
+                  font=("Helvetica",10,"bold"), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=8).pack(side="left", fill="x", expand=True, padx=(0,4))
+        tk.Button(btn_row, text="🔎  Vérifier maintenant", command=self._verifier_maj_tab,
+                  font=("Helvetica",10,"bold"), bg=ACCENT, fg="white", bd=0,
+                  cursor="hand2", pady=8).pack(side="left", fill="x", expand=True, padx=(4,0))
+
+        self.maj_status_lbl = tk.Label(frm, text="", font=("Helvetica",9),
+                 bg=DARK_BG, fg=TEXT_MUTED, wraplength=560, justify="left")
+        self.maj_status_lbl.pack(anchor="w", pady=(14,0))
+
+        self._maj_toggle_chemin()
+
+    def _maj_toggle_chemin(self):
+        etat = "disabled" if self.maj_source_var.get() == "github" else "normal"
+        self.maj_chemin_entry.config(state=etat)
+
+    def _choisir_dossier_maj(self):
+        dossier = filedialog.askdirectory(parent=self, title="Choisir le dossier de mise à jour")
+        if dossier:
+            self.maj_chemin_var.set(dossier)
+
+    def _sauvegarder_maj(self):
+        db.set_parametre("maj_source", self.maj_source_var.get())
+        db.set_parametre("maj_chemin", self.maj_chemin_var.get().strip())
+        messagebox.showinfo("Enregistré", "Paramètres de mise à jour enregistrés.", parent=self)
+
+    def _verifier_maj_tab(self):
+        source = self.maj_source_var.get()
+        chemin = self.maj_chemin_var.get().strip()
+        self.maj_status_lbl.config(text="⏳  Vérification en cours...", fg=TEXT_MUTED)
+        _verifier_maj_async(self, source, chemin, status_cb=self._maj_set_status)
+
+    def _maj_set_status(self, texte, couleur):
+        self.maj_status_lbl.config(text=texte, fg=couleur)
 
     def _build_mdp(self, parent):
         """Onglet modification/suppression mot de passe Yoann."""
