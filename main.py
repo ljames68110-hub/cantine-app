@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog
 import os, sys, subprocess, platform, shutil, threading
-from datetime import datetime
+from datetime import datetime, timedelta
 import database as db
 import impression
 import updater
@@ -63,6 +63,84 @@ def _identite_bon(nom, prenom, ecrou, batiment, cellule, date_str):
     if db.get_parametres().get("bon_sans_identite", "0") == "1":
         return "", "", "", "", "", ""
     return nom, prenom, ecrou, batiment, cellule, date_str
+
+
+JOURS_SEMAINE = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+
+
+def _jour_livraison_categorie(categorie):
+    """Jour de livraison par défaut d'une catégorie (configuré dans
+    Paramètres > Livraison), '' si non défini."""
+    return db.get_parametres().get(f"livraison_cat_{categorie}", "")
+
+
+def _prochain_jour_semaine(date_ref, jour_idx):
+    """Retourne la première date >= date_ref tombant sur jour_idx (0=Lundi...6=Dimanche)."""
+    ecart = (jour_idx - date_ref.weekday()) % 7
+    return date_ref + timedelta(days=ecart)
+
+
+def _date_ramassage(date_creation):
+    """Date du prochain ramassage des bons (mercredi matin par défaut,
+    configurable dans Paramètres > Livraison)."""
+    params = db.get_parametres()
+    jour_nom = params.get("ramassage_jour", "Mercredi")
+    jour_idx = JOURS_SEMAINE.index(jour_nom) if jour_nom in JOURS_SEMAINE else 2
+    return _prochain_jour_semaine(date_creation, jour_idx)
+
+
+def _date_debut_distribution(date_creation):
+    """Date à partir de laquelle la distribution commence pour un bon créé
+    le date_creation : le lundi de la semaine du ramassage + le délai en
+    semaines (ex: ramassage mercredi + délai=2 -> lundi 12 jours plus tard,
+    soit la 3ème semaine)."""
+    params = db.get_parametres()
+    try:
+        delai = int(params.get("distribution_delai_semaines", "2") or 0)
+    except ValueError:
+        delai = 2
+    ramassage = _date_ramassage(date_creation)
+    lundi_semaine_ramassage = ramassage - timedelta(days=ramassage.weekday())
+    return lundi_semaine_ramassage + timedelta(weeks=delai)
+
+def _date_distribution_categorie(date_creation, jour_cat=None):
+    """Date estimée à laquelle le détenu recevra sa commande : début de la
+    période de distribution, ajusté sur le jour hebdo de la catégorie si connu."""
+    debut = _date_debut_distribution(date_creation)
+    if jour_cat and jour_cat in JOURS_SEMAINE:
+        return _prochain_jour_semaine(debut, JOURS_SEMAINE.index(jour_cat))
+    return debut
+
+
+def _infos_livraison_commande(commande, produits_ref, categorie, date_creation=None):
+    """Retourne une liste de (jour_semaine_ou_'', date) uniques pour les
+    produits d'une commande, triée par date réelle la plus proche en premier.
+    jour_livraison du produit prioritaire, sinon jour par défaut de la
+    catégorie. Si aucun jour n'est défini, retourne quand même le début de
+    la période de distribution."""
+    date_creation = date_creation or datetime.now()
+    jours_par_produit = {p[0]: (p[6] if len(p) > 6 else "") for p in produits_ref}
+    defaut_cat = _jour_livraison_categorie(categorie)
+    jours = []
+    for pid in commande:
+        j = jours_par_produit.get(pid, "") or defaut_cat
+        if j and j not in jours:
+            jours.append(j)
+    if not jours:
+        return [("", _date_debut_distribution(date_creation))]
+    infos = [(j, _date_distribution_categorie(date_creation, j)) for j in jours]
+    infos.sort(key=lambda t: t[1])  # tri chronologique réel (pas alphabétique)
+    return infos
+
+
+def _formater_infos_livraison(infos):
+    """Formate une liste [(jour, date), ...] en texte lisible, ex:
+    'Mardi 18/08/2026, Mercredi 19/08/2026' ou juste '19/08/2026' si aucun jour."""
+    parts = []
+    for jour, date in infos:
+        d = date.strftime("%d/%m/%Y")
+        parts.append(f"{jour} {d}" if jour else d)
+    return ", ".join(parts)
 
 
 # ─────────────────────────────────────────────
@@ -572,6 +650,7 @@ class CantineApp(tk.Tk):
             hbtn(right, "📋 Catalogue", self._ouvrir_catalogue)
             hbtn(right, "🔑 MDP", self._changer_mdp)
             hbtn(right, "🔄 Mises à jour", self._verifier_maj_manuelle)
+            hbtn(right, "💰 Créances", lambda: CreancesWindow(self))
 
         hbtn(right, "💰 Budget", self._modifier_budget)
         hbtn(right, "🏦 Compte", self._ouvrir_compte)
@@ -1052,10 +1131,33 @@ class CommandeWindow(tk.Toplevel):
         tk.Label(tot_frm, textvariable=self.total_var,
                  font=("Helvetica",15,"bold"), bg=ACCENT, fg="white",
                  pady=10).pack()
+        self.livraison_var = tk.StringVar(value="")
+        self.livraison_lbl = tk.Label(tot_frm, textvariable=self.livraison_var,
+                 font=("Helvetica",9,"bold"), bg=ACCENT, fg="#fef3c7")
+
+        # Créance (la personne me doit de l'argent)
+        creance_frm = tk.Frame(right, bg="#111827")
+        creance_frm.grid(row=4, column=0, sticky="ew", padx=8, pady=(0,4))
+        self.creance_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(creance_frm,
+                       text="💰  Cette personne me doit de l'argent (créance)",
+                       variable=self.creance_var, command=self._toggle_creance,
+                       bg="#111827", fg=TEXT, activebackground="#111827",
+                       activeforeground=TEXT, selectcolor=CARD_BG,
+                       font=("Helvetica",9,"bold"), anchor="w").pack(fill="x")
+        self.creance_nom_frm = tk.Frame(creance_frm, bg="#111827")
+        tk.Label(self.creance_nom_frm, text="Nom :", font=("Helvetica",9),
+                 bg="#111827", fg=TEXT_MUTED).pack(side="left", padx=(0,6))
+        self.creance_nom_var = tk.StringVar()
+        tk.Entry(self.creance_nom_frm, textvariable=self.creance_nom_var,
+                 font=("Helvetica",9), bg=CARD_BG, fg=TEXT, insertbackground=TEXT,
+                 bd=0, relief="flat", highlightthickness=1,
+                 highlightbackground=BORDER, highlightcolor=ACCENT).pack(
+                     side="left", fill="x", expand=True, ipady=4)
 
         # Boutons actions
         btn_frm = tk.Frame(right, bg="#111827")
-        btn_frm.grid(row=4, column=0, sticky="ew", padx=8, pady=(0,8))
+        btn_frm.grid(row=5, column=0, sticky="ew", padx=8, pady=(0,8))
         btn_frm.columnconfigure(0, weight=1)
         btn_frm.columnconfigure(1, weight=1)
 
@@ -1099,7 +1201,7 @@ class CommandeWindow(tk.Toplevel):
             key=lambda p: int(_re.sub(r"[^0-9]", "", p[0]) or "0"))
         self.tree_prod.delete(*self.tree_prod.get_children())
         for p in self.produits:
-            pid, nom, _, prix, qmax, _ = p
+            pid, nom, _, prix, qmax, _, _jour = p
             if filtre and filtre.lower() not in nom.lower() and filtre.lower() not in pid.lower():
                 continue
             self.tree_prod.insert("", "end", iid=pid,
@@ -1116,7 +1218,7 @@ class CommandeWindow(tk.Toplevel):
         pid = sel[0]
         prod = next((p for p in self.produits if p[0] == pid), None)
         if not prod: return
-        _, nom, _, prix, qmax, _ = prod
+        _, nom, _, prix, qmax, _, _jour = prod
         try: qte = max(1, int(self.qte_var.get()))
         except: qte = 1
         new_qte = self.commande[pid]["qte"] + qte if pid in self.commande else qte
@@ -1137,6 +1239,15 @@ class CommandeWindow(tk.Toplevel):
                 "Vider", "Vider tout le bon ?", parent=self):
             self.commande.clear()
             self._refresh_bon()
+            self.creance_var.set(False)
+            self.creance_nom_var.set("")
+            self.creance_nom_frm.pack_forget()
+
+    def _toggle_creance(self):
+        if self.creance_var.get():
+            self.creance_nom_frm.pack(fill="x", pady=(4,0))
+        else:
+            self.creance_nom_frm.pack_forget()
 
     def _refresh_bon(self):
         self.tree_bon.delete(*self.tree_bon.get_children())
@@ -1155,6 +1266,14 @@ class CommandeWindow(tk.Toplevel):
         self.total_var.set(f"TOTAL :   {total:.2f} €")
         n = len(self.commande)
         self.count_lbl.config(text=f"{n} article{'s' if n>1 else ''}")
+
+        if self.commande:
+            infos = _infos_livraison_commande(self.commande, self.produits, self.categorie)
+            self.livraison_var.set(f"🚚  Livraison estimée : {_formater_infos_livraison(infos)}")
+            self.livraison_lbl.pack(pady=(0,8))
+        else:
+            self.livraison_var.set("")
+            self.livraison_lbl.pack_forget()
 
     def _sauvegarder(self):
         if not self.commande:
@@ -1186,9 +1305,25 @@ class CommandeWindow(tk.Toplevel):
             lignes.append({"id":pid, "nom":d["nom"], "prix":d["prix"],
                            "qte":d["qte"], "total":st, "qte_max":d["qte_max"]})
         ui = self.user_info
+
+        est_creance  = self.creance_var.get()
+        nom_creance  = self.creance_nom_var.get().strip() if est_creance else ""
+        jour_creance = ""
+        date_creance = ""
+        if est_creance:
+            infos = _infos_livraison_commande(self.commande, self.produits, self.categorie)
+            jour_creance = ", ".join(j for j, _ in infos if j)
+            date_creance = infos[0][1].strftime("%d/%m/%Y")  # date la plus proche
+        if est_creance and not nom_creance:
+            messagebox.showwarning("Nom manquant",
+                "Indiquez le nom de la personne pour la créance.", parent=self)
+            return
+
         bon_id = db.sauvegarder_bon(
             self.categorie, ui["nom"], ui["prenom"], ui["ecrou"],
-            ui["batiment"], ui["cellule"], lignes, total, date_str, self.user_type)
+            ui["batiment"], ui["cellule"], lignes, total, date_str, self.user_type,
+            est_creance=est_creance, nom_creance=nom_creance, jour_creance=jour_creance,
+            date_creance=date_creance)
 
         # ── Auto-enregistrement dans le compte cantinable ──
         try:
@@ -1230,6 +1365,11 @@ class CommandeWindow(tk.Toplevel):
         self.tree_bon.delete(*self.tree_bon.get_children())
         self.total_var.set("TOTAL :   0,00 €")
         self.count_lbl.config(text="0 article")
+        self.livraison_var.set("")
+        self.livraison_lbl.pack_forget()
+        self.creance_var.set(False)
+        self.creance_nom_var.set("")
+        self.creance_nom_frm.pack_forget()
 
 
 class ParametresWindow(tk.Toplevel):
@@ -1328,6 +1468,82 @@ class ParametresWindow(tk.Toplevel):
         tab_impr = tk.Frame(nb, bg=DARK_BG)
         nb.add(tab_impr, text="  🖨️  Impression  ")
         self._build_impression(tab_impr, params)
+
+        # ── Onglet 6 : Livraison ────────────────────────────────────────
+        tab_livr = tk.Frame(nb, bg=DARK_BG)
+        nb.add(tab_livr, text="  🚚  Livraison  ")
+        self._build_livraison(tab_livr, params)
+
+    def _build_livraison(self, parent, params):
+        """Onglet de configuration du cycle ramassage/distribution et du
+        jour de livraison par défaut de chaque catégorie."""
+        frm = tk.Frame(parent, bg=DARK_BG, padx=24, pady=16)
+        frm.pack(fill="both", expand=True)
+
+        tk.Label(frm, text="Cycle de ramassage et distribution",
+                 font=("Helvetica",12,"bold"), bg=DARK_BG, fg=TEXT).pack(anchor="w", pady=(0,8))
+
+        row_r = tk.Frame(frm, bg=DARK_BG); row_r.pack(fill="x", pady=3)
+        tk.Label(row_r, text="Jour de ramassage des bons :", width=28, anchor="w",
+                 font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left")
+        self.ramassage_jour_var = tk.StringVar(value=params.get("ramassage_jour","Mercredi"))
+        ttk.Combobox(row_r, textvariable=self.ramassage_jour_var, values=JOURS_SEMAINE,
+                    state="readonly", width=14).pack(side="left")
+
+        row_d = tk.Frame(frm, bg=DARK_BG); row_d.pack(fill="x", pady=3)
+        tk.Label(row_d, text="Délai avant distribution (semaines) :", width=28, anchor="w",
+                 font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left")
+        self.delai_var = tk.StringVar(value=params.get("distribution_delai_semaines","2"))
+        tk.Spinbox(row_d, from_=0, to=12, textvariable=self.delai_var, width=5,
+                  font=("Helvetica",9), bg=CARD_BG, fg=TEXT, bd=0,
+                  buttonbackground=CARD_BG, insertbackground=TEXT).pack(side="left", ipady=2)
+
+        tk.Label(frm,
+            text="Ex : ramassage le mercredi + délai de 2 semaines = distribution\n"
+                 "à partir du lundi de la 3ème semaine suivant le ramassage\n"
+                 "(soit 12 jours après un ramassage du mercredi).",
+            font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
+            wraplength=580, justify="left").pack(anchor="w", pady=(4,16))
+
+        tk.Frame(frm, bg=BORDER, height=1).pack(fill="x", pady=(0,14))
+
+        tk.Label(frm, text="Jour de livraison par défaut, par catégorie",
+                 font=("Helvetica",12,"bold"), bg=DARK_BG, fg=TEXT).pack(anchor="w", pady=(0,4))
+        tk.Label(frm,
+            text="Laissez sur « Non défini » si la catégorie n'a pas de jour fixe.\n"
+                 "Pour une exception au sein d'une catégorie (ex : les fromages livrés\n"
+                 "un autre jour que le reste des Fruits & Légumes), utilisez la colonne\n"
+                 "Livraison du Catalogue, produit par produit — elle prend le dessus.",
+            font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
+            wraplength=580, justify="left").pack(anchor="w", pady=(0,10))
+
+        self.livraison_cat_vars = {}
+        for cat_nom, emoji, _ in CATEGORIES:
+            row = tk.Frame(frm, bg=DARK_BG); row.pack(fill="x", pady=2)
+            tk.Label(row, text=f"{emoji}  {cat_nom} :", width=24, anchor="w",
+                     font=("Helvetica",9), bg=DARK_BG, fg=TEXT).pack(side="left")
+            v = tk.StringVar(value=params.get(f"livraison_cat_{cat_nom}","") or "(Non défini)")
+            self.livraison_cat_vars[cat_nom] = v
+            ttk.Combobox(row, textvariable=v, values=["(Non défini)"] + JOURS_SEMAINE,
+                        state="readonly", width=14).pack(side="left")
+
+        tk.Button(frm, text="💾  Enregistrer", command=self._sauvegarder_livraison,
+                  font=("Helvetica",11,"bold"), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=8).pack(fill="x", pady=(16,0))
+
+    def _sauvegarder_livraison(self):
+        db.set_parametre("ramassage_jour", self.ramassage_jour_var.get())
+        try:
+            delai = int(self.delai_var.get())
+        except ValueError:
+            delai = 2
+        db.set_parametre("distribution_delai_semaines", str(delai))
+        for cat_nom, var in self.livraison_cat_vars.items():
+            v = var.get()
+            v = "" if v == "(Non défini)" else v
+            db.set_parametre(f"livraison_cat_{cat_nom}", v)
+        messagebox.showinfo("Enregistré",
+            "Paramètres de livraison enregistrés.", parent=self)
 
     def _build_impression(self, parent, params):
         """Onglet pour activer le mode d'impression des bons sans info détenu."""
@@ -1686,6 +1902,41 @@ class ParametresWindow(tk.Toplevel):
 # ─────────────────────────────────────────────
 # CATALOGUE
 # ─────────────────────────────────────────────
+def _demander_jour(parent, titre="Jour de livraison", valeur_init=""):
+    """Petit dialogue modal avec une Combobox pour choisir un jour de la semaine.
+    Retourne le jour choisi (str, '' pour non défini) ou None si annulé."""
+    win = tk.Toplevel(parent)
+    win.title(titre)
+    win.configure(bg=DARK_BG)
+    win.resizable(False, False)
+    win.transient(parent)
+    win.grab_set()
+    tk.Label(win, text=titre, font=("Helvetica",11,"bold"),
+             bg=DARK_BG, fg=TEXT).pack(padx=24, pady=(16,8))
+    var = tk.StringVar(value=valeur_init or "(Non défini)")
+    ttk.Combobox(win, textvariable=var, values=["(Non défini)"] + JOURS_SEMAINE,
+                state="readonly", width=20, font=("Helvetica",10)).pack(padx=24, pady=4)
+    result = {"value": None}
+    def _valider():
+        v = var.get()
+        result["value"] = "" if v == "(Non défini)" else v
+        win.destroy()
+    btn_frm = tk.Frame(win, bg=DARK_BG)
+    btn_frm.pack(fill="x", padx=24, pady=(12,16))
+    tk.Button(btn_frm, text="Annuler", command=win.destroy,
+              font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
+              cursor="hand2", pady=6).pack(side="left", fill="x", expand=True, padx=(0,4))
+    tk.Button(btn_frm, text="✓ Valider", command=_valider,
+              font=("Helvetica",9,"bold"), bg=SUCCESS, fg="white", bd=0,
+              cursor="hand2", pady=6).pack(side="left", fill="x", expand=True, padx=(4,0))
+    win.update_idletasks()
+    x = parent.winfo_rootx() + (parent.winfo_width()-win.winfo_width())//2
+    y = parent.winfo_rooty() + (parent.winfo_height()-win.winfo_height())//2
+    win.geometry(f"+{x}+{y}")
+    win.wait_window()
+    return result["value"]
+
+
 class CatalogueWindow(tk.Toplevel):
     def __init__(self, master):
         super().__init__(master)
@@ -1733,11 +1984,12 @@ class CatalogueWindow(tk.Toplevel):
                        bg=PANEL_BG, activebackground=PANEL_BG, fg=TEXT_MUTED,
                        selectcolor=CARD_BG, command=self._load).pack(side="left", padx=8)
 
-        cols = ("id","nom","categorie","prix","max","actif")
+        cols = ("id","nom","categorie","prix","max","actif","livraison")
         self.tree = ttk.Treeview(self, columns=cols, show="headings")
-        for col, txt, w, anc in [("id","Code",70,"center"),("nom","Produit",420,"w"),
-                                   ("categorie","Catégorie",130,"center"),("prix","Prix",80,"center"),
-                                   ("max","Max",60,"center"),("actif","Actif",60,"center")]:
+        for col, txt, w, anc in [("id","Code",70,"center"),("nom","Produit",380,"w"),
+                                   ("categorie","Catégorie",120,"center"),("prix","Prix",70,"center"),
+                                   ("max","Max",50,"center"),("actif","Actif",55,"center"),
+                                   ("livraison","Livraison",100,"center")]:
             self.tree.heading(col, text=txt)
             self.tree.column(col, width=w, anchor=anc)
         sb = ttk.Scrollbar(self, orient="vertical", command=self.tree.yview)
@@ -1753,6 +2005,11 @@ class CatalogueWindow(tk.Toplevel):
         tk.Button(bbar, text="✏️ Modifier", command=self._editer,
                   font=("Helvetica",9), bg=ACCENT, fg="white", bd=0,
                   cursor="hand2", pady=5, padx=10).pack(side="right", padx=8, pady=6)
+        tk.Button(bbar, text="📅 Jour de livraison", command=self._definir_livraison,
+                  font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
+                  cursor="hand2", pady=5, padx=10).pack(side="right", padx=8, pady=6)
+        tk.Label(bbar, text="(sélection multiple : Ctrl+clic / Shift+clic)",
+                 bg=PANEL_BG, fg=TEXT_MUTED, font=("Helvetica",8,"italic")).pack(side="right", padx=4)
 
         s = ttk.Style(); s.theme_use("clam")
         s.configure("Treeview", background=CARD_BG, foreground=TEXT,
@@ -1770,11 +2027,12 @@ class CatalogueWindow(tk.Toplevel):
         self.tree.delete(*self.tree.get_children())
         n = 0
         for p in prods:
-            pid, nom, cat2, prix, qmax, actif = p
+            pid, nom, cat2, prix, qmax, actif, jour = p
             if f and f not in nom.lower() and f not in pid.lower(): continue
             tag = "" if actif == "Oui" else "inactive"
             self.tree.insert("", "end", iid=pid,
-                             values=(pid, nom, cat2, f"{prix:.2f} €", qmax, actif),
+                             values=(pid, nom, cat2, f"{prix:.2f} €", qmax, actif,
+                                     jour or "—"),
                              tags=(tag,))
             n += 1
         self.tree.tag_configure("inactive", foreground=TEXT_MUTED)
@@ -1788,6 +2046,19 @@ class CatalogueWindow(tk.Toplevel):
         if prod:
             EditProduitWindow(self, prod, self._load)
 
+    def _definir_livraison(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showinfo("Sélection",
+                "Sélectionnez un ou plusieurs produits dans la liste\n"
+                "(Ctrl+clic ou Shift+clic pour une sélection multiple).", parent=self)
+            return
+        jour = _demander_jour(self, f"Jour de livraison — {len(sel)} produit(s)")
+        if jour is None:
+            return
+        db.set_jour_livraison(list(sel), jour)
+        self._load()
+
 class EditProduitWindow(tk.Toplevel):
     def __init__(self, master, prod, callback):
         super().__init__(master)
@@ -1795,7 +2066,7 @@ class EditProduitWindow(tk.Toplevel):
         self.title(f"Modifier — {prod[0]}")
         self.configure(bg=DARK_BG)
         self.resizable(False, False)
-        self.geometry("400x280")
+        self.geometry("400x330")
         self._center()
         self._build()
 
@@ -1806,7 +2077,7 @@ class EditProduitWindow(tk.Toplevel):
         self.geometry(f"+{x}+{y}")
 
     def _build(self):
-        pid, nom, _, prix, qmax, actif = self.prod
+        pid, nom, _, prix, qmax, actif, jour = self.prod
         bar = tk.Frame(self, bg=HEADER_BG, height=44); bar.pack(fill="x"); bar.pack_propagate(False)
         tk.Label(bar, text=f"✏️  {pid}", font=("Helvetica",11,"bold"),
                  bg=HEADER_BG, fg="white").pack(side="left", padx=12, pady=8)
@@ -1827,6 +2098,13 @@ class EditProduitWindow(tk.Toplevel):
         self.v_actif = tk.StringVar(value=actif)
         ttk.Combobox(row_a, textvariable=self.v_actif, values=["Oui","Non"],
                      state="readonly", width=8).pack(side="left")
+        row_j = tk.Frame(frm, bg=DARK_BG); row_j.pack(fill="x", pady=4)
+        tk.Label(row_j, text="Livraison:", width=14, anchor="e",
+                 font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(0,8))
+        self.v_jour = tk.StringVar(value=jour or "(Non défini)")
+        ttk.Combobox(row_j, textvariable=self.v_jour,
+                     values=["(Non défini)"] + JOURS_SEMAINE,
+                     state="readonly", width=16).pack(side="left")
         tk.Button(frm, text="💾 Enregistrer", command=self._save,
                   font=("Helvetica",11,"bold"), bg=SUCCESS, fg="white", bd=0,
                   cursor="hand2", pady=8, activebackground="#15803d").pack(fill="x", pady=(12,0))
@@ -1837,7 +2115,10 @@ class EditProduitWindow(tk.Toplevel):
             qmax = int(self.vars["max"].get())
         except:
             messagebox.showerror("Erreur","Prix et Max doivent être des nombres.",parent=self); return
-        db.update_produit(self.prod[0], self.vars["nom"].get().strip(), prix, qmax, self.v_actif.get())
+        jour = self.v_jour.get()
+        jour = "" if jour == "(Non défini)" else jour
+        db.update_produit(self.prod[0], self.vars["nom"].get().strip(), prix, qmax,
+                          self.v_actif.get(), jour_livraison=jour)
         self.callback(); self.destroy()
 
 
@@ -2314,6 +2595,118 @@ class CompteTransactionForm(tk.Toplevel):
 # ─────────────────────────────────────────────
 # HISTORIQUE
 # ─────────────────────────────────────────────
+class CreancesWindow(tk.Toplevel):
+    """Liste des bons marqués comme créance (personnes qui doivent de l'argent)."""
+    def __init__(self, master):
+        super().__init__(master)
+        self.title("Créances")
+        self.configure(bg=DARK_BG)
+        self.geometry("900x560")
+        self._center()
+        self._build()
+
+    def _center(self):
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()  - self.winfo_width())  // 2
+        y = (self.winfo_screenheight() - self.winfo_height()) // 2
+        self.geometry(f"+{x}+{y}")
+
+    def _build(self):
+        bar = tk.Frame(self, bg=HEADER_BG, height=48)
+        bar.pack(fill="x")
+        bar.pack_propagate(False)
+        tk.Label(bar, text="💰  Créances — Personnes qui me doivent de l'argent",
+                 font=("Helvetica",13,"bold"), bg=HEADER_BG, fg="white").pack(side="left", padx=14)
+        tk.Button(bar, text="✕ Fermer", command=self.destroy,
+                  font=("Helvetica",9), bg=DANGER, fg="white", bd=0,
+                  cursor="hand2", pady=4, padx=10).pack(side="right", padx=10)
+
+        fbar = tk.Frame(self, bg=PANEL_BG)
+        fbar.pack(fill="x")
+        self.afficher_soldees_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(fbar, text="Afficher aussi les créances déjà récupérées",
+                       variable=self.afficher_soldees_var, command=self._load,
+                       bg=PANEL_BG, activebackground=PANEL_BG, fg=TEXT_MUTED,
+                       selectcolor=CARD_BG).pack(side="left", padx=10, pady=8)
+
+        cols = ("id","nom","montant","jour","date_recup","date_bon","categorie","statut")
+        self.tree = ttk.Treeview(self, columns=cols, show="headings", selectmode="browse")
+        for col, txt, w, anc in [
+            ("id",         "#",            45,  "center"),
+            ("nom",        "Nom",          190, "w"),
+            ("montant",    "Montant",      80,  "center"),
+            ("jour",       "Jour",         100, "center"),
+            ("date_recup", "Date estimée", 100, "center"),
+            ("date_bon",   "Date du bon",  95,  "center"),
+            ("categorie",  "Catégorie",    120, "center"),
+            ("statut",     "Statut",       95,  "center"),
+        ]:
+            self.tree.heading(col, text=txt, anchor=anc)
+            self.tree.column(col, width=w, anchor=anc)
+        sb = ttk.Scrollbar(self, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.tree.pack(fill="both", expand=True)
+
+        bbar = tk.Frame(self, bg=PANEL_BG)
+        bbar.pack(fill="x")
+        self.total_lbl = tk.Label(bbar, text="", bg=PANEL_BG, fg=GOLD,
+                                  font=("Helvetica",10,"bold"))
+        self.total_lbl.pack(side="left", padx=14, pady=8)
+        tk.Button(bbar, text="✅  Marquer comme récupéré", command=self._marquer_soldee,
+                  font=("Helvetica",9,"bold"), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=6, padx=10).pack(side="right", padx=8, pady=6)
+        tk.Button(bbar, text="↩️  Remettre en attente", command=self._remettre_attente,
+                  font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
+                  cursor="hand2", pady=6, padx=10).pack(side="right", padx=4, pady=6)
+
+        s = ttk.Style(); s.theme_use("clam")
+        s.configure("Treeview", background=CARD_BG, foreground=TEXT,
+                    fieldbackground=CARD_BG, rowheight=26, font=("Helvetica",9))
+        s.configure("Treeview.Heading", background=HEADER_BG, foreground="white",
+                    font=("Helvetica",9,"bold"))
+        s.map("Treeview", background=[("selected", ACCENT)])
+        self._load()
+
+    def _load(self):
+        uniquement_actives = not self.afficher_soldees_var.get()
+        rows = db.get_creances(uniquement_actives=uniquement_actives)
+        self.tree.delete(*self.tree.get_children())
+        total_du = 0.0
+        for r in rows:
+            bid, date, cat, nom, prenom, ecrou, bat, cell, total, *rest = r
+            # rest = [user_type, est_creance, nom_creance, jour_creance, creance_soldee, date_creance]
+            nom_creance  = rest[2] if len(rest) > 2 else ""
+            jour_creance = rest[3] if len(rest) > 3 else ""
+            soldee       = rest[4] if len(rest) > 4 else 0
+            date_creance = rest[5] if len(rest) > 5 else ""
+            statut = "✅ Récupéré" if soldee else "⏳ En attente"
+            tag = "soldee" if soldee else "attente"
+            self.tree.insert("", "end", iid=str(bid),
+                             values=(bid, nom_creance, f"{total:.2f} €",
+                                     jour_creance or "—", date_creance or "—",
+                                     date, cat, statut),
+                             tags=(tag,))
+            if not soldee:
+                total_du += total
+        self.tree.tag_configure("attente", foreground=TEXT)
+        self.tree.tag_configure("soldee", foreground=TEXT_MUTED)
+        self.total_lbl.config(
+            text=f"Total en attente : {total_du:.2f} €   ({len(rows)} créance(s) affichée(s))")
+
+    def _marquer_soldee(self):
+        sel = self.tree.selection()
+        if not sel: return
+        db.marquer_creance_soldee(int(sel[0]), True)
+        self._load()
+
+    def _remettre_attente(self):
+        sel = self.tree.selection()
+        if not sel: return
+        db.marquer_creance_soldee(int(sel[0]), False)
+        self._load()
+
+
 class HistoriqueWindow(tk.Toplevel):
     def __init__(self, master, user_type, user_info):
         super().__init__(master)

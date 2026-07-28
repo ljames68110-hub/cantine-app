@@ -278,12 +278,15 @@ def init_db():
     conn = get_connection()
     c = conn.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS produits (
-        id TEXT PRIMARY KEY, nom TEXT, categorie TEXT, prix REAL, qte_max INTEGER, actif TEXT)""")
+        id TEXT PRIMARY KEY, nom TEXT, categorie TEXT, prix REAL, qte_max INTEGER, actif TEXT,
+        jour_livraison TEXT DEFAULT '')""")
     c.execute("""CREATE TABLE IF NOT EXISTS parametres (cle TEXT PRIMARY KEY, valeur TEXT)""")
     c.execute("""CREATE TABLE IF NOT EXISTS bons (
         id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, categorie TEXT,
         nom TEXT, prenom TEXT, ecrou TEXT, batiment TEXT, cellule TEXT,
-        total REAL, user_type TEXT DEFAULT 'invite')""")
+        total REAL, user_type TEXT DEFAULT 'invite',
+        est_creance INTEGER DEFAULT 0, nom_creance TEXT DEFAULT '',
+        jour_creance TEXT DEFAULT '', creance_soldee INTEGER DEFAULT 0)""")
     c.execute("""CREATE TABLE IF NOT EXISTS lignes_bon (
         id INTEGER PRIMARY KEY AUTOINCREMENT, bon_id INTEGER,
         produit_id TEXT, designation TEXT, prix REAL, quantite INTEGER, total_ligne REAL,
@@ -310,18 +313,32 @@ def init_db():
     try:
         c.execute("ALTER TABLE bons ADD COLUMN user_type TEXT DEFAULT 'invite'")
     except: pass
+    for ddl in [
+        "ALTER TABLE produits ADD COLUMN jour_livraison TEXT DEFAULT ''",
+        "ALTER TABLE bons ADD COLUMN est_creance INTEGER DEFAULT 0",
+        "ALTER TABLE bons ADD COLUMN nom_creance TEXT DEFAULT ''",
+        "ALTER TABLE bons ADD COLUMN jour_creance TEXT DEFAULT ''",
+        "ALTER TABLE bons ADD COLUMN creance_soldee INTEGER DEFAULT 0",
+        "ALTER TABLE bons ADD COLUMN date_creance TEXT DEFAULT ''",
+    ]:
+        try: c.execute(ddl)
+        except: pass
     # Comptes par défaut
     c.execute("INSERT OR IGNORE INTO utilisateurs VALUES (1,'yoann','1234','yoann')")
     c.execute("INSERT OR IGNORE INTO utilisateurs VALUES (2,'admin','admin','admin')")
     # Produits
     c.execute("SELECT COUNT(*) FROM produits")
     if c.fetchone()[0] == 0:
-        c.executemany("INSERT INTO produits VALUES (?,?,?,?,?,?)", PRODUITS_INITIAUX)
+        c.executemany(
+            "INSERT INTO produits (id,nom,categorie,prix,qte_max,actif) VALUES (?,?,?,?,?,?)",
+            PRODUITS_INITIAUX)
     # Paramètres Yoann
     defaults = [("nom","LUTZ"),("prenom","Yoann"),("ecrou","9283"),
                 ("batiment","C"),("cellule","323"),("signature_path",""),
                 ("maj_source","github"),("maj_chemin",""),
-                ("bon_sans_identite","0")]
+                ("bon_sans_identite","0"),
+                ("ramassage_jour","Mercredi"),
+                ("distribution_delai_semaines","2")]
     for k, v in defaults:
         c.execute("INSERT OR IGNORE INTO parametres VALUES (?,?)", (k, v))
     conn.commit()
@@ -361,10 +378,26 @@ def get_produits(categorie=None, actif_only=True):
         return int(num) if num else 0
     return sorted(result, key=_sort_key)
 
-def update_produit(prod_id, nom, prix, qte_max, actif):
+def update_produit(prod_id, nom, prix, qte_max, actif, jour_livraison=None):
     conn = get_connection()
     c = conn.cursor()
-    c.execute("UPDATE produits SET nom=?, prix=?, qte_max=?, actif=? WHERE id=?", (nom, prix, qte_max, actif, prod_id))
+    if jour_livraison is None:
+        c.execute("UPDATE produits SET nom=?, prix=?, qte_max=?, actif=? WHERE id=?",
+                  (nom, prix, qte_max, actif, prod_id))
+    else:
+        c.execute("UPDATE produits SET nom=?, prix=?, qte_max=?, actif=?, jour_livraison=? WHERE id=?",
+                  (nom, prix, qte_max, actif, jour_livraison, prod_id))
+    conn.commit()
+    conn.close()
+
+def set_jour_livraison(prod_ids, jour):
+    """prod_ids : un identifiant produit (str) ou une liste d'identifiants."""
+    if isinstance(prod_ids, str):
+        prod_ids = [prod_ids]
+    conn = get_connection()
+    c = conn.cursor()
+    c.executemany("UPDATE produits SET jour_livraison=? WHERE id=?",
+                  [(jour, pid) for pid in prod_ids])
     conn.commit()
     conn.close()
 
@@ -383,11 +416,16 @@ def changer_mot_de_passe(login, nouveau_mdp):
     conn.commit()
     conn.close()
 
-def sauvegarder_bon(categorie, nom, prenom, ecrou, batiment, cellule, lignes, total, date_str, user_type="invite"):
+def sauvegarder_bon(categorie, nom, prenom, ecrou, batiment, cellule, lignes, total, date_str,
+                     user_type="invite", est_creance=0, nom_creance="", jour_creance="",
+                     date_creance=""):
     conn = get_connection()
     c = conn.cursor()
-    c.execute("INSERT INTO bons (date,categorie,nom,prenom,ecrou,batiment,cellule,total,user_type) VALUES (?,?,?,?,?,?,?,?,?)",
-              (date_str, categorie, nom, prenom, ecrou, batiment, cellule, total, user_type))
+    c.execute("""INSERT INTO bons
+        (date,categorie,nom,prenom,ecrou,batiment,cellule,total,user_type,
+         est_creance,nom_creance,jour_creance,date_creance) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+              (date_str, categorie, nom, prenom, ecrou, batiment, cellule, total, user_type,
+               1 if est_creance else 0, nom_creance, jour_creance, date_creance))
     bon_id = c.lastrowid
     for l in lignes:
         c.execute("INSERT INTO lignes_bon (bon_id,produit_id,designation,prix,quantite,total_ligne) VALUES (?,?,?,?,?,?)",
@@ -395,6 +433,25 @@ def sauvegarder_bon(categorie, nom, prenom, ecrou, batiment, cellule, lignes, to
     conn.commit()
     conn.close()
     return bon_id
+
+def get_creances(uniquement_actives=True):
+    conn = get_connection()
+    c = conn.cursor()
+    q = "SELECT * FROM bons WHERE est_creance=1"
+    if uniquement_actives:
+        q += " AND creance_soldee=0"
+    q += " ORDER BY id DESC"
+    c.execute(q)
+    result = c.fetchall()
+    conn.close()
+    return result
+
+def marquer_creance_soldee(bon_id, soldee=True):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE bons SET creance_soldee=? WHERE id=?", (1 if soldee else 0, bon_id))
+    conn.commit()
+    conn.close()
 
 def get_historique_bons(limit=100):
     conn = get_connection()
