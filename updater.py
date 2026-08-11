@@ -27,7 +27,7 @@ import urllib.error
 # Version actuelle de l'application
 # À incrémenter à chaque nouvelle release (doit correspondre au tag "vX.Y")
 # ─────────────────────────────────────────────
-APP_VERSION = "6.0"
+APP_VERSION = "5.3"
 
 GITHUB_REPO = "ljames68110-hub/cantine-app"
 GITHUB_API_LATEST = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
@@ -141,6 +141,25 @@ def _verifier_dossier(chemin, source_label):
 
 
 # ─────────────────────────────────────────────
+# Vérification — Fichier .exe sélectionné directement (source locale)
+# ─────────────────────────────────────────────
+def _verifier_fichier_local(chemin_exe):
+    if not chemin_exe:
+        raise UpdaterError("Aucun fichier d'installation sélectionné.\n"
+                           "Choisissez un fichier .exe dans Paramètres > Mises à jour.")
+    if not os.path.isfile(chemin_exe):
+        raise UpdaterError(f"Fichier introuvable :\n{chemin_exe}")
+    if not chemin_exe.lower().endswith(".exe"):
+        raise UpdaterError("Le fichier sélectionné n'est pas un .exe.")
+    return {
+        "version": "?",           # pas de comparaison de version : sélection manuelle assumée
+        "source": "local_fichier",
+        "url": chemin_exe,
+        "notes": "",
+    }
+
+
+# ─────────────────────────────────────────────
 # API principale — vérification
 # ─────────────────────────────────────────────
 def verifier_maj(source, chemin=None, version_actuelle=APP_VERSION):
@@ -148,11 +167,18 @@ def verifier_maj(source, chemin=None, version_actuelle=APP_VERSION):
     Retourne None si aucune mise à jour disponible, sinon un dict :
     {version, source, url, notes}
     Lève UpdaterError en cas de problème (réseau, dossier absent, etc.)
+
+    Pour source="local", chemin est le chemin complet d'un fichier .exe
+    choisi directement par l'utilisateur : aucune comparaison de version
+    n'est faite, l'installation est toujours proposée (sélection manuelle
+    assumée volontaire).
     """
     if source == "github":
         info = _verifier_github()
-    elif source in ("reseau", "local"):
+    elif source == "reseau":
         info = _verifier_dossier(chemin, source)
+    elif source == "local":
+        return _verifier_fichier_local(chemin)
     else:
         raise UpdaterError(f"Source de mise à jour inconnue : {source}")
 

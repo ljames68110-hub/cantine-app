@@ -179,15 +179,22 @@ def _maj_traiter_resultat(parent, info, status_cb, silencieux=False):
             messagebox.showinfo("Mise à jour", txt, parent=parent)
         return
 
+    version_connue = info.get("version") and info["version"] != "?"
+
     if status_cb:
-        status_cb(f"🆕 Nouvelle version disponible : v{info['version']}", GOLD)
+        label = (f"🆕 Nouvelle version disponible : v{info['version']}" if version_connue
+                 else "📦  Fichier d'installation prêt à installer")
+        status_cb(label, GOLD)
 
     notes = (info.get("notes") or "").strip()
-    msg = f"Une nouvelle version (v{info['version']}) est disponible.\n"
+    if version_connue:
+        msg = f"Une nouvelle version (v{info['version']}) est disponible.\n"
+    else:
+        msg = "Installer le fichier d'installation sélectionné ?\n"
     if notes:
         msg += "\n" + notes[:400] + "\n"
     msg += "\nMettre à jour maintenant ?\nL'application va se fermer puis redémarrer."
-    if messagebox.askyesno("Mise à jour disponible", msg, parent=parent):
+    if messagebox.askyesno("Mise à jour", msg, parent=parent):
         _maj_telecharger_installer(parent, info, status_cb)
 
 
@@ -334,6 +341,7 @@ class LoginWindow(tk.Tk):
             "batiment": params.get("batiment","C"),
             "cellule":  params.get("cellule","323"),
         }
+        db.set_parametre("bon_sans_identite", "0")
         self._demander_budget()
         self.destroy()
 
@@ -344,6 +352,7 @@ class LoginWindow(tk.Tk):
         if win.result:
             self.user_type = "invite"
             self.user_info = win.result
+            db.set_parametre("bon_sans_identite", "1" if win.anonyme else "0")
             self._demander_budget()
             self.destroy()
 
@@ -352,6 +361,7 @@ class InviteInfoWindow(tk.Toplevel):
     def __init__(self, master):
         super().__init__(master)
         self.result = None
+        self.anonyme = False
         self.title("Informations Invité")
         self.configure(bg=DARK_BG)
         self.resizable(False, False)
@@ -404,6 +414,12 @@ class InviteInfoWindow(tk.Toplevel):
                   bd=0, cursor="hand2", pady=9,
                   activebackground="#4f46e5", activeforeground="white").pack(fill="x", pady=(14,0))
 
+        tk.Button(frm, text="🕶️  Annuler — remplir un bon sans information détenu",
+                  command=self._annuler,
+                  font=("Helvetica",9), bg="#374151", fg=TEXT,
+                  bd=0, cursor="hand2", pady=7,
+                  activebackground="#4b5563", activeforeground="white").pack(fill="x", pady=(8,0))
+
         # Focus on first field
         self.after(100, lambda: list(frm.winfo_children())[0].winfo_children()[-1].focus())
 
@@ -414,6 +430,12 @@ class InviteInfoWindow(tk.Toplevel):
                     f"Veuillez renseigner le champ « {key} ».", parent=self)
                 return
         self.result = {k: v.get().strip() for k, v in self.vars.items()}
+        self.anonyme = False
+        self.destroy()
+
+    def _annuler(self):
+        self.result = {"nom":"", "prenom":"", "ecrou":"", "batiment":"", "cellule":""}
+        self.anonyme = True
         self.destroy()
 
 
@@ -545,10 +567,14 @@ class CantineApp(tk.Tk):
     def _verifier_maj_demarrage(self):
         """Vérification silencieuse au démarrage : ne dérange que si une
         mise à jour est réellement disponible (aucun message si tout va bien
-        ou si la source de mise à jour est injoignable)."""
+        ou si la source de mise à jour est injoignable). La source "locale"
+        (fichier .exe choisi manuellement) n'est jamais vérifiée automatiquement
+        au démarrage, sinon elle redemanderait à chaque lancement."""
         params = db.get_parametres()
-        _verifier_maj_async(self, params.get("maj_source", "github"),
-                             params.get("maj_chemin", ""), silencieux=True)
+        source = params.get("maj_source", "github")
+        if source == "local":
+            return
+        _verifier_maj_async(self, source, params.get("maj_chemin", ""), silencieux=True)
 
     def _verifier_maj_manuelle(self):
         """Vérification déclenchée depuis le bouton de l'en-tête."""
@@ -957,14 +983,66 @@ class SignatureWindow(tk.Toplevel):
 # ─────────────────────────────────────────────
 # COMMANDE
 # ─────────────────────────────────────────────
+class ModifierIdentiteDialog(tk.Toplevel):
+    """Dialogue pour modifier les informations détenu d'un bon spécifique,
+    sans affecter la session (Yoann ou Invité) ni les autres bons."""
+    def __init__(self, master, info_actuelle):
+        super().__init__(master)
+        self.result = None
+        self.title("Modifier les informations détenu")
+        self.configure(bg=DARK_BG)
+        self.resizable(False, False)
+        self.geometry("380x350")
+        self._center()
+        self._build(info_actuelle)
+
+    def _center(self):
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()  - self.winfo_width())  // 2
+        y = (self.winfo_screenheight() - self.winfo_height()) // 2
+        self.geometry(f"+{x}+{y}")
+
+    def _build(self, info):
+        bar = tk.Frame(self, bg=HEADER_BG, height=44); bar.pack(fill="x"); bar.pack_propagate(False)
+        tk.Label(bar, text="✏️  Informations détenu (ce bon uniquement)",
+                 font=("Helvetica",11,"bold"), bg=HEADER_BG, fg="white").pack(side="left", padx=12, pady=8)
+        frm = tk.Frame(self, bg=DARK_BG, padx=24, pady=16); frm.pack(fill="both", expand=True)
+        tk.Label(frm, text="Ces informations ne s'appliquent qu'à ce bon —\n"
+                            "elles ne changent ni votre session, ni Paramètres.",
+                 font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
+                 justify="left").pack(anchor="w", pady=(0,10))
+        fields = [("Nom","nom"),("Prénom","prenom"),("Écrou","ecrou"),
+                  ("Bâtiment","batiment"),("Cellule","cellule")]
+        self.vars = {}
+        for label, key in fields:
+            row = tk.Frame(frm, bg=DARK_BG); row.pack(fill="x", pady=4)
+            tk.Label(row, text=label+" :", width=12, anchor="e",
+                     font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(0,8))
+            v = tk.StringVar(value=info.get(key,"")); self.vars[key] = v
+            e = tk.Entry(row, textvariable=v, font=("Helvetica",10),
+                     bg=CARD_BG, fg=TEXT, insertbackground=TEXT, bd=0,
+                     relief="flat", highlightthickness=1, highlightbackground=BORDER,
+                     highlightcolor=ACCENT)
+            e.pack(side="left", fill="x", expand=True, ipady=6)
+        tk.Button(frm, text="✓  Appliquer à ce bon", command=self._valider,
+                  font=("Helvetica",11,"bold"), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=8, activebackground="#15803d").pack(fill="x", pady=(14,0))
+        self.after(100, lambda: list(frm.winfo_children())[1].winfo_children()[-1].focus())
+
+    def _valider(self):
+        self.result = {k: v.get().strip() for k, v in self.vars.items()}
+        self.destroy()
+
+
 class CommandeWindow(tk.Toplevel):
     def __init__(self, master, categorie, user_info, user_type, sig_path,
                  commande_init=None):
         super().__init__(master)
         self.categorie = categorie
-        self.user_info = user_info
+        self.user_info = dict(user_info)  # copie locale : ne modifie pas la session
         self.user_type = user_type
-        self.sig_path  = sig_path
+        self.mode_anonyme = db.get_parametres().get("bon_sans_identite", "0") == "1"
+        self.sig_path  = None if self.mode_anonyme else sig_path
         self.commande  = dict(commande_init) if commande_init else {}
         self.produits  = []
         self.title(f"Bon de commande — {categorie}")
@@ -987,20 +1065,40 @@ class CommandeWindow(tk.Toplevel):
                   font=("Helvetica",10), bg=DANGER, fg="white", bd=0, cursor="hand2",
                   pady=6, padx=14, activebackground="#b91c1c").pack(side="right", padx=12, pady=8)
 
+        date_frm = tk.Frame(bar, bg=HEADER_BG)
+        date_frm.pack(side="right", padx=(0,8), pady=8)
+        tk.Label(date_frm, text="📅  Date du bon :", font=("Helvetica",9),
+                 bg=HEADER_BG, fg="white").pack(side="left", padx=(0,6))
+        self.date_var = tk.StringVar(value=datetime.now().strftime("%d/%m/%Y"))
+        tk.Entry(date_frm, textvariable=self.date_var, font=("Helvetica",10),
+                 width=11, justify="center", bg=CARD_BG, fg=TEXT,
+                 insertbackground=TEXT, bd=0, relief="flat",
+                 highlightthickness=1, highlightbackground=BORDER,
+                 highlightcolor=ACCENT).pack(side="left", ipady=4)
+        self.date_var.trace_add("write", lambda *_: self._refresh_bon())
+
         # ── Bandeau identité ─────────────────────────────────────────────
-        ui = self.user_info
-        badge   = "👤" if self.user_type == "yoann" else "👥"
-        sig_lbl = "   ✍️ Signature activée" if self.sig_path else ""
         id_bar  = tk.Frame(self, bg="#0f172a")
         id_bar.pack(fill="x")
-        tk.Label(id_bar,
-                 text=(f"  {badge}  {ui.get('nom','').upper()} {ui.get('prenom','')}   "
-                       f"│  Écrou : {ui.get('ecrou','')}   "
-                       f"│  Bât. {ui.get('batiment','')} / Cell. {ui.get('cellule','')}"
-                       f"{sig_lbl}"),
+        self.id_bar_var = tk.StringVar()
+        tk.Label(id_bar, textvariable=self.id_bar_var,
                  font=("Helvetica",9), bg="#0f172a",
                  fg=GOLD if self.user_type=="yoann" else "#a5b4fc",
                  pady=5).pack(side="left", padx=12)
+        self.modifier_id_btn = tk.Button(id_bar, text="✏️  Modifier",
+                  command=self._modifier_identite,
+                  font=("Helvetica",8), bg="#1e293b", fg=TEXT, bd=0,
+                  cursor="hand2", padx=8, pady=2)
+        self.modifier_id_btn.pack(side="left", padx=(0,12))
+        if self.mode_anonyme:
+            self.modifier_id_btn.config(state="disabled")
+        self._refresh_id_bar()
+
+        if self.mode_anonyme:
+            tk.Label(self, text="🕶️  Mode bon sans information détenu actif — "
+                                "signature désactivée, ce bon sera enregistré comme créance",
+                     font=("Helvetica",9,"bold"), bg="#78350f", fg="#fef3c7",
+                     pady=5).pack(fill="x")
 
         # ── Zone principale en GRID (2 colonnes fiables) ─────────────────
         main = tk.Frame(self, bg=DARK_BG)
@@ -1138,13 +1236,17 @@ class CommandeWindow(tk.Toplevel):
         # Créance (la personne me doit de l'argent)
         creance_frm = tk.Frame(right, bg="#111827")
         creance_frm.grid(row=4, column=0, sticky="ew", padx=8, pady=(0,4))
-        self.creance_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(creance_frm,
+        self.creance_var = tk.BooleanVar(value=self.mode_anonyme)
+        self.creance_chk = tk.Checkbutton(creance_frm,
                        text="💰  Cette personne me doit de l'argent (créance)",
                        variable=self.creance_var, command=self._toggle_creance,
                        bg="#111827", fg=TEXT, activebackground="#111827",
                        activeforeground=TEXT, selectcolor=CARD_BG,
-                       font=("Helvetica",9,"bold"), anchor="w").pack(fill="x")
+                       font=("Helvetica",9,"bold"), anchor="w")
+        self.creance_chk.pack(fill="x")
+        if self.mode_anonyme:
+            self.creance_chk.config(state="disabled",
+                text="💰  Créance (obligatoire — bon sans information détenu)")
         self.creance_nom_frm = tk.Frame(creance_frm, bg="#111827")
         tk.Label(self.creance_nom_frm, text="Nom :", font=("Helvetica",9),
                  bg="#111827", fg=TEXT_MUTED).pack(side="left", padx=(0,6))
@@ -1154,6 +1256,8 @@ class CommandeWindow(tk.Toplevel):
                  bd=0, relief="flat", highlightthickness=1,
                  highlightbackground=BORDER, highlightcolor=ACCENT).pack(
                      side="left", fill="x", expand=True, ipady=4)
+        if self.mode_anonyme:
+            self.creance_nom_frm.pack(fill="x", pady=(4,0))
 
         # Boutons actions
         btn_frm = tk.Frame(right, bg="#111827")
@@ -1192,6 +1296,24 @@ class CommandeWindow(tk.Toplevel):
         s.configure("Treeview.Heading", background=HEADER_BG, foreground="white",
                     font=("Helvetica",9,"bold"))
         s.map("Treeview", background=[("selected", ACCENT)])
+
+    def _refresh_id_bar(self):
+        ui = self.user_info
+        badge   = "👤" if self.user_type == "yoann" else "👥"
+        sig_lbl = "   ✍️ Signature activée" if self.sig_path else ""
+        self.id_bar_var.set(
+            f"  {badge}  {ui.get('nom','').upper()} {ui.get('prenom','')}   "
+            f"│  Écrou : {ui.get('ecrou','')}   "
+            f"│  Bât. {ui.get('batiment','')} / Cell. {ui.get('cellule','')}"
+            f"{sig_lbl}")
+
+    def _modifier_identite(self):
+        win = ModifierIdentiteDialog(self, self.user_info)
+        win.grab_set()
+        self.wait_window(win)
+        if win.result:
+            self.user_info = win.result
+            self._refresh_id_bar()
 
     def _load_products(self, filtre=""):
         import re as _re
@@ -1239,15 +1361,24 @@ class CommandeWindow(tk.Toplevel):
                 "Vider", "Vider tout le bon ?", parent=self):
             self.commande.clear()
             self._refresh_bon()
-            self.creance_var.set(False)
-            self.creance_nom_var.set("")
-            self.creance_nom_frm.pack_forget()
+            if not self.mode_anonyme:
+                self.creance_var.set(False)
+                self.creance_nom_var.set("")
+                self.creance_nom_frm.pack_forget()
 
     def _toggle_creance(self):
         if self.creance_var.get():
             self.creance_nom_frm.pack(fill="x", pady=(4,0))
         else:
             self.creance_nom_frm.pack_forget()
+
+    def _parse_date_bon(self):
+        """Date choisie pour le bon (anti-datation possible). Retourne un
+        datetime, ou celui d'aujourd'hui si le champ est vide/invalide."""
+        try:
+            return datetime.strptime(self.date_var.get().strip(), "%d/%m/%Y")
+        except (ValueError, AttributeError):
+            return None
 
     def _refresh_bon(self):
         self.tree_bon.delete(*self.tree_bon.get_children())
@@ -1268,7 +1399,9 @@ class CommandeWindow(tk.Toplevel):
         self.count_lbl.config(text=f"{n} article{'s' if n>1 else ''}")
 
         if self.commande:
-            infos = _infos_livraison_commande(self.commande, self.produits, self.categorie)
+            date_ref = self._parse_date_bon() or datetime.now()
+            infos = _infos_livraison_commande(self.commande, self.produits,
+                                              self.categorie, date_creation=date_ref)
             self.livraison_var.set(f"🚚  Livraison estimée : {_formater_infos_livraison(infos)}")
             self.livraison_lbl.pack(pady=(0,8))
         else:
@@ -1279,6 +1412,12 @@ class CommandeWindow(tk.Toplevel):
         if not self.commande:
             messagebox.showwarning("Bon vide",
                 "Ajoutez au moins un produit avant de sauvegarder.", parent=self)
+            return
+
+        if self.date_var.get().strip() and self._parse_date_bon() is None:
+            messagebox.showwarning("Date invalide",
+                "La date du bon doit être au format jj/mm/aaaa (ex: 15/07/2026).",
+                parent=self)
             return
 
         # Vérification budget
@@ -1297,7 +1436,8 @@ class CommandeWindow(tk.Toplevel):
                 if not rep:
                     return
 
-        date_str = datetime.now().strftime("%d/%m/%Y")
+        date_creation = self._parse_date_bon() or datetime.now()
+        date_str = date_creation.strftime("%d/%m/%Y")
         lignes, total = [], 0.0
         for pid, d in self.commande.items():
             st = d["prix"] * d["qte"]
@@ -1306,12 +1446,13 @@ class CommandeWindow(tk.Toplevel):
                            "qte":d["qte"], "total":st, "qte_max":d["qte_max"]})
         ui = self.user_info
 
-        est_creance  = self.creance_var.get()
+        est_creance  = self.creance_var.get() or self.mode_anonyme
         nom_creance  = self.creance_nom_var.get().strip() if est_creance else ""
         jour_creance = ""
         date_creance = ""
         if est_creance:
-            infos = _infos_livraison_commande(self.commande, self.produits, self.categorie)
+            infos = _infos_livraison_commande(self.commande, self.produits,
+                                              self.categorie, date_creation=date_creation)
             jour_creance = ", ".join(j for j, _ in infos if j)
             date_creance = infos[0][1].strftime("%d/%m/%Y")  # date la plus proche
         if est_creance and not nom_creance:
@@ -1367,9 +1508,13 @@ class CommandeWindow(tk.Toplevel):
         self.count_lbl.config(text="0 article")
         self.livraison_var.set("")
         self.livraison_lbl.pack_forget()
-        self.creance_var.set(False)
         self.creance_nom_var.set("")
-        self.creance_nom_frm.pack_forget()
+        if self.mode_anonyme:
+            self.creance_var.set(True)
+            self.creance_nom_frm.pack(fill="x", pady=(4,0))
+        else:
+            self.creance_var.set(False)
+            self.creance_nom_frm.pack_forget()
 
 
 class ParametresWindow(tk.Toplevel):
@@ -1569,7 +1714,13 @@ class ParametresWindow(tk.Toplevel):
                  "sur le PDF imprimé. Les enregistrements internes (historique, "
                  "budget, compte cantinable) ne sont pas affectés.\n\n"
                  "S'applique à tous les bons imprimés : nouveau bon, "
-                 "\"Tout imprimer\" et réimpression depuis l'historique.",
+                 "\"Tout imprimer\" et réimpression depuis l'historique.\n\n"
+                 "Quand ce mode est actif, la signature automatique est désactivée "
+                 "et chaque nouveau bon est automatiquement enregistré comme "
+                 "créance (avec demande du nom de la personne), puisqu'aucune "
+                 "identité n'est associée au bon papier.\n\n"
+                 "S'active aussi automatiquement si l'invité clique sur "
+                 "« Annuler » à l'écran d'identification.",
             font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
             wraplength=560, justify="left").pack(anchor="w", pady=(0,18))
 
@@ -1598,7 +1749,7 @@ class ParametresWindow(tk.Toplevel):
         options = [
             ("github", "🌐  Internet (GitHub)"),
             ("reseau", "🖧  Dossier réseau partagé"),
-            ("local",  "💾  Dossier local / clé USB"),
+            ("local",  "💾  Fichier .exe local / clé USB"),
         ]
         for val, label in options:
             tk.Radiobutton(frm, text=label, value=val, variable=self.maj_source_var,
@@ -1609,7 +1760,8 @@ class ParametresWindow(tk.Toplevel):
 
         row_chemin = tk.Frame(frm, bg=DARK_BG)
         row_chemin.pack(fill="x", pady=(10,4))
-        tk.Label(row_chemin, text="Dossier :", width=12, anchor="e",
+        self.maj_chemin_lbl_var = tk.StringVar(value="Dossier :")
+        tk.Label(row_chemin, textvariable=self.maj_chemin_lbl_var, width=12, anchor="e",
                  font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(0,8))
         self.maj_chemin_var = tk.StringVar(value=params.get("maj_chemin",""))
         self.maj_chemin_entry = tk.Entry(row_chemin, textvariable=self.maj_chemin_var,
@@ -1617,12 +1769,13 @@ class ParametresWindow(tk.Toplevel):
                  relief="flat", highlightthickness=1, highlightbackground=BORDER,
                  highlightcolor=ACCENT)
         self.maj_chemin_entry.pack(side="left", fill="x", expand=True, ipady=6)
-        tk.Button(row_chemin, text="…", command=self._choisir_dossier_maj,
+        tk.Button(row_chemin, text="…", command=self._choisir_chemin_maj,
                   font=("Helvetica",10,"bold"), bg=CARD_BG, fg=TEXT, bd=0,
                   cursor="hand2", padx=10).pack(side="left", padx=(6,0))
 
-        tk.Label(frm,
-                 text="Le dossier réseau/local doit contenir : version.txt et CantineSetup.exe",
+        self.maj_chemin_help_var = tk.StringVar(
+            value="Le dossier réseau doit contenir : version.txt et CantineSetup.exe")
+        tk.Label(frm, textvariable=self.maj_chemin_help_var,
                  font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
                  wraplength=560, justify="left").pack(anchor="w", pady=(0,14))
 
@@ -1642,13 +1795,31 @@ class ParametresWindow(tk.Toplevel):
         self._maj_toggle_chemin()
 
     def _maj_toggle_chemin(self):
-        etat = "disabled" if self.maj_source_var.get() == "github" else "normal"
+        source = self.maj_source_var.get()
+        etat = "disabled" if source == "github" else "normal"
         self.maj_chemin_entry.config(state=etat)
+        if source == "local":
+            self.maj_chemin_lbl_var.set("Fichier :")
+            self.maj_chemin_help_var.set(
+                "Sélectionnez directement le fichier CantineSetup.exe à installer "
+                "(ex: sur une clé USB). Aucune vérification de version : le fichier "
+                "choisi est toujours proposé à l'installation.")
+        else:
+            self.maj_chemin_lbl_var.set("Dossier :")
+            self.maj_chemin_help_var.set(
+                "Le dossier réseau doit contenir : version.txt et CantineSetup.exe")
 
-    def _choisir_dossier_maj(self):
-        dossier = filedialog.askdirectory(parent=self, title="Choisir le dossier de mise à jour")
-        if dossier:
-            self.maj_chemin_var.set(dossier)
+    def _choisir_chemin_maj(self):
+        if self.maj_source_var.get() == "local":
+            fichier = filedialog.askopenfilename(
+                parent=self, title="Choisir le fichier d'installation (.exe)",
+                filetypes=[("Exécutable", "*.exe"), ("Tous les fichiers", "*.*")])
+            if fichier:
+                self.maj_chemin_var.set(fichier)
+        else:
+            dossier = filedialog.askdirectory(parent=self, title="Choisir le dossier de mise à jour")
+            if dossier:
+                self.maj_chemin_var.set(dossier)
 
     def _sauvegarder_maj(self):
         db.set_parametre("maj_source", self.maj_source_var.get())
@@ -2628,6 +2799,12 @@ class CreancesWindow(tk.Toplevel):
                        variable=self.afficher_soldees_var, command=self._load,
                        bg=PANEL_BG, activebackground=PANEL_BG, fg=TEXT_MUTED,
                        selectcolor=CARD_BG).pack(side="left", padx=10, pady=8)
+        tk.Button(fbar, text="📥  Importer", command=self._importer,
+                  font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
+                  cursor="hand2", pady=5, padx=12).pack(side="right", padx=8, pady=6)
+        tk.Button(fbar, text="📤  Exporter", command=self._exporter,
+                  font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
+                  cursor="hand2", pady=5, padx=12).pack(side="right", padx=4, pady=6)
 
         cols = ("id","nom","montant","jour","date_recup","date_bon","categorie","statut")
         self.tree = ttk.Treeview(self, columns=cols, show="headings", selectmode="browse")
@@ -2705,6 +2882,44 @@ class CreancesWindow(tk.Toplevel):
         if not sel: return
         db.marquer_creance_soldee(int(sel[0]), False)
         self._load()
+
+    def _exporter(self):
+        from datetime import datetime as _dt
+        nom_defaut = f"creances_{_dt.now().strftime('%Y-%m-%d')}.json"
+        chemin = filedialog.asksaveasfilename(
+            parent=self, title="Exporter les créances",
+            defaultextension=".json", initialfile=nom_defaut,
+            filetypes=[("Fichier créances", "*.json"), ("Tous les fichiers", "*.*")])
+        if not chemin:
+            return
+        try:
+            n = db.exporter_creances(chemin)
+        except Exception as e:
+            messagebox.showerror("Export", f"Échec de l'export :\n{e}", parent=self)
+            return
+        messagebox.showinfo("Export réussi",
+            f"{n} créance(s) exportée(s) vers :\n{chemin}\n\n"
+            "Vous pouvez copier ce fichier sur une clé USB ou un dossier "
+            "réseau, puis l'importer sur l'autre poste.", parent=self)
+
+    def _importer(self):
+        chemin = filedialog.askopenfilename(
+            parent=self, title="Importer des créances",
+            filetypes=[("Fichier créances", "*.json"), ("Tous les fichiers", "*.*")])
+        if not chemin:
+            return
+        try:
+            ajoutees, maj = db.importer_creances(chemin)
+        except ValueError as e:
+            messagebox.showerror("Import", str(e), parent=self)
+            return
+        except Exception as e:
+            messagebox.showerror("Import", f"Échec de l'import :\n{e}", parent=self)
+            return
+        self._load()
+        messagebox.showinfo("Import réussi",
+            f"{ajoutees} nouvelle(s) créance(s) ajoutée(s).\n"
+            f"{maj} créance(s) existante(s) mise(s) à jour.", parent=self)
 
 
 class HistoriqueWindow(tk.Toplevel):
@@ -2831,10 +3046,14 @@ class HistoriqueWindow(tk.Toplevel):
         self.tree.delete(*self.tree.get_children())
         for b in self.bons:
             bid, date, cat, nom, prenom, ecrou, bat, cell, total, *rest = b
-            utype = rest[0] if rest else "?"
+            # rest = [user_type, est_creance, nom_creance, jour_creance, creance_soldee, date_creance]
+            utype       = rest[0] if len(rest) > 0 else "?"
+            est_creance = rest[1] if len(rest) > 1 else 0
+            nom_creance = rest[2] if len(rest) > 2 else ""
             badge = "👤" if utype == "yoann" else "👥"
+            nom_affiche = f"💰 {nom_creance}" if est_creance and nom_creance else f"{nom} {prenom}"
             self.tree.insert("", "end", iid=str(bid),
-                             values=(bid, date, cat, f"{nom} {prenom}",
+                             values=(bid, date, cat, nom_affiche,
                                      ecrou, badge, f"{total:.2f} €"))
         self.dtree.delete(*self.dtree.get_children())
 

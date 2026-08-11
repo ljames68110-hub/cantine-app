@@ -1,5 +1,5 @@
 import sys
-import sqlite3, os
+import sqlite3, os, uuid, json
 
 def _app_data_dir():
     """Dossier données utilisateur — fonctionne en .py ET en .exe PyInstaller."""
@@ -320,9 +320,14 @@ def init_db():
         "ALTER TABLE bons ADD COLUMN jour_creance TEXT DEFAULT ''",
         "ALTER TABLE bons ADD COLUMN creance_soldee INTEGER DEFAULT 0",
         "ALTER TABLE bons ADD COLUMN date_creance TEXT DEFAULT ''",
+        "ALTER TABLE bons ADD COLUMN uid TEXT DEFAULT ''",
     ]:
         try: c.execute(ddl)
         except: pass
+    # Attribue un uid aux bons qui n'en ont pas encore (bases antérieures)
+    c.execute("SELECT id FROM bons WHERE uid IS NULL OR uid=''")
+    for (bid,) in c.fetchall():
+        c.execute("UPDATE bons SET uid=? WHERE id=?", (str(uuid.uuid4()), bid))
     # Comptes par défaut
     c.execute("INSERT OR IGNORE INTO utilisateurs VALUES (1,'yoann','1234','yoann')")
     c.execute("INSERT OR IGNORE INTO utilisateurs VALUES (2,'admin','admin','admin')")
@@ -338,7 +343,7 @@ def init_db():
                 ("maj_source","github"),("maj_chemin",""),
                 ("bon_sans_identite","0"),
                 ("ramassage_jour","Mercredi"),
-                ("distribution_delai_semaines","2")]
+                ("distribution_delai_semaines","3")]
     for k, v in defaults:
         c.execute("INSERT OR IGNORE INTO parametres VALUES (?,?)", (k, v))
     conn.commit()
@@ -421,11 +426,12 @@ def sauvegarder_bon(categorie, nom, prenom, ecrou, batiment, cellule, lignes, to
                      date_creance=""):
     conn = get_connection()
     c = conn.cursor()
+    bon_uid = str(uuid.uuid4())
     c.execute("""INSERT INTO bons
         (date,categorie,nom,prenom,ecrou,batiment,cellule,total,user_type,
-         est_creance,nom_creance,jour_creance,date_creance) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+         est_creance,nom_creance,jour_creance,date_creance,uid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
               (date_str, categorie, nom, prenom, ecrou, batiment, cellule, total, user_type,
-               1 if est_creance else 0, nom_creance, jour_creance, date_creance))
+               1 if est_creance else 0, nom_creance, jour_creance, date_creance, bon_uid))
     bon_id = c.lastrowid
     for l in lignes:
         c.execute("INSERT INTO lignes_bon (bon_id,produit_id,designation,prix,quantite,total_ligne) VALUES (?,?,?,?,?,?)",
@@ -452,6 +458,103 @@ def marquer_creance_soldee(bon_id, soldee=True):
     c.execute("UPDATE bons SET creance_soldee=? WHERE id=?", (1 if soldee else 0, bon_id))
     conn.commit()
     conn.close()
+
+
+# ─────────────────────────────────────────────
+# Export / Import des créances (transfert entre postes)
+# ─────────────────────────────────────────────
+EXPORT_FORMAT_VERSION = 1
+
+def exporter_creances(chemin_fichier):
+    """Exporte toutes les créances (actives et soldées) vers un fichier JSON,
+    lignes de bon incluses. Retourne le nombre de créances exportées."""
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM bons WHERE est_creance=1 ORDER BY id")
+    bons = c.fetchall()
+
+    creances = []
+    for b in bons:
+        b = dict(b)
+        # Garantit un uid même sur de très vieux enregistrements
+        if not b.get("uid"):
+            b["uid"] = str(uuid.uuid4())
+            c.execute("UPDATE bons SET uid=? WHERE id=?", (b["uid"], b["id"]))
+        c.execute("SELECT produit_id,designation,prix,quantite,total_ligne "
+                  "FROM lignes_bon WHERE bon_id=?", (b["id"],))
+        lignes = [dict(l) for l in c.fetchall()]
+        b.pop("id", None)  # l'id local n'a pas de sens sur l'autre poste
+        b["lignes"] = lignes
+        creances.append(b)
+    conn.commit()
+    conn.close()
+
+    data = {
+        "format": "cantine_creances",
+        "version": EXPORT_FORMAT_VERSION,
+        "creances": creances,
+    }
+    with open(chemin_fichier, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return len(creances)
+
+
+def importer_creances(chemin_fichier):
+    """Importe les créances d'un fichier JSON.
+    - Créance inconnue (uid absent) : ajoutée.
+    - Créance déjà présente (même uid) : son état récupéré/en attente est
+      mis à jour depuis le fichier.
+    Retourne un tuple (nb_ajoutees, nb_mises_a_jour).
+    Lève ValueError si le fichier n'est pas un export de créances valide."""
+    with open(chemin_fichier, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    if not isinstance(data, dict) or data.get("format") != "cantine_creances":
+        raise ValueError("Ce fichier n'est pas un export de créances valide.")
+
+    creances = data.get("creances", [])
+    conn = get_connection()
+    c = conn.cursor()
+    nb_ajoutees = 0
+    nb_maj = 0
+
+    for cr in creances:
+        uid = cr.get("uid")
+        if not uid:
+            uid = str(uuid.uuid4())
+        c.execute("SELECT id FROM bons WHERE uid=?", (uid,))
+        existant = c.fetchone()
+
+        if existant:
+            # Mise à jour de l'état uniquement (récupéré / en attente)
+            c.execute("UPDATE bons SET creance_soldee=? WHERE uid=?",
+                      (int(cr.get("creance_soldee", 0) or 0), uid))
+            nb_maj += 1
+        else:
+            c.execute("""INSERT INTO bons
+                (date,categorie,nom,prenom,ecrou,batiment,cellule,total,user_type,
+                 est_creance,nom_creance,jour_creance,date_creance,creance_soldee,uid)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (cr.get("date",""), cr.get("categorie",""), cr.get("nom",""),
+                 cr.get("prenom",""), cr.get("ecrou",""), cr.get("batiment",""),
+                 cr.get("cellule",""), float(cr.get("total",0) or 0),
+                 cr.get("user_type","invite"), 1,
+                 cr.get("nom_creance",""), cr.get("jour_creance",""),
+                 cr.get("date_creance",""), int(cr.get("creance_soldee",0) or 0), uid))
+            new_id = c.lastrowid
+            for l in cr.get("lignes", []):
+                c.execute("""INSERT INTO lignes_bon
+                    (bon_id,produit_id,designation,prix,quantite,total_ligne)
+                    VALUES (?,?,?,?,?,?)""",
+                    (new_id, l.get("produit_id",""), l.get("designation",""),
+                     float(l.get("prix",0) or 0), int(l.get("quantite",0) or 0),
+                     float(l.get("total_ligne",0) or 0)))
+            nb_ajoutees += 1
+
+    conn.commit()
+    conn.close()
+    return nb_ajoutees, nb_maj
 
 def get_historique_bons(limit=100):
     conn = get_connection()
