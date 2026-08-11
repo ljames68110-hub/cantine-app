@@ -459,6 +459,18 @@ def marquer_creance_soldee(bon_id, soldee=True):
     conn.commit()
     conn.close()
 
+def get_bon_creance_info(bon_id):
+    """Retourne (est_creance, creance_soldee, nom_creance) pour un bon donné,
+    ou None si le bon n'existe pas."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT est_creance, creance_soldee, nom_creance FROM bons WHERE id=?", (bon_id,))
+    row = c.fetchone()
+    conn.close()
+    if row is None:
+        return None
+    return (row[0] or 0, row[1] or 0, row[2] or "")
+
 
 # ─────────────────────────────────────────────
 # Export / Import des créances (transfert entre postes)

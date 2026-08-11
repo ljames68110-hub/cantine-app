@@ -2952,16 +2952,17 @@ class HistoriqueWindow(tk.Toplevel):
                   cursor="hand2", pady=4, padx=10).pack(side="right", padx=10)
 
         # ── Treeview bons ─────────────────────────────────────────────────────
-        cols = ("id","date","categorie","nom","ecrou","type","total")
+        cols = ("id","date","categorie","nom","ecrou","type","creance","total")
         self.tree = ttk.Treeview(self, columns=cols, show="headings",
                                  height=14, selectmode="browse")
         for col, txt, w, anc in [
             ("id",        "#",          45,  "center"),
             ("date",      "Date",       95,  "center"),
             ("categorie", "Catégorie", 130,  "center"),
-            ("nom",       "Nom",       220,  "w"),
-            ("ecrou",     "Écrou",      80,  "center"),
-            ("type",      "Profil",     60,  "center"),
+            ("nom",       "Nom",       200,  "w"),
+            ("ecrou",     "Écrou",      75,  "center"),
+            ("type",      "Profil",     55,  "center"),
+            ("creance",   "Créance",   110,  "center"),
             ("total",     "Total",      90,  "center"),
         ]:
             self.tree.heading(col, text=txt, anchor=anc)
@@ -3021,6 +3022,11 @@ class HistoriqueWindow(tk.Toplevel):
                   font=("Helvetica",10), bg=DANGER, fg="white", bd=0,
                   cursor="hand2", pady=7, padx=14).pack(side="left", pady=6)
 
+        tk.Button(abar, text="💰  Basculer récupéré / en attente",
+                  command=self._basculer_creance,
+                  font=("Helvetica",10), bg="#b45309", fg="white", bd=0,
+                  cursor="hand2", pady=7, padx=12).pack(side="left", padx=4, pady=6)
+
         tk.Button(abar, text="🖨️  Imprimer TOUS les bons",
                   command=self._imprimer_tous,
                   font=("Helvetica",11,"bold"), bg="#7c3aed", fg="white", bd=0,
@@ -3046,15 +3052,25 @@ class HistoriqueWindow(tk.Toplevel):
         self.tree.delete(*self.tree.get_children())
         for b in self.bons:
             bid, date, cat, nom, prenom, ecrou, bat, cell, total, *rest = b
-            # rest = [user_type, est_creance, nom_creance, jour_creance, creance_soldee, date_creance]
-            utype       = rest[0] if len(rest) > 0 else "?"
-            est_creance = rest[1] if len(rest) > 1 else 0
-            nom_creance = rest[2] if len(rest) > 2 else ""
+            # rest = [user_type, est_creance, nom_creance, jour_creance, creance_soldee, date_creance, uid]
+            utype        = rest[0] if len(rest) > 0 else "?"
+            est_creance  = rest[1] if len(rest) > 1 else 0
+            nom_creance  = rest[2] if len(rest) > 2 else ""
+            soldee       = rest[4] if len(rest) > 4 else 0
             badge = "👤" if utype == "yoann" else "👥"
             nom_affiche = f"💰 {nom_creance}" if est_creance and nom_creance else f"{nom} {prenom}"
+            if est_creance:
+                creance_txt = "✅ Récupéré" if soldee else "⏳ En attente"
+                tag = "soldee" if soldee else "attente"
+            else:
+                creance_txt = "—"
+                tag = ""
             self.tree.insert("", "end", iid=str(bid),
                              values=(bid, date, cat, nom_affiche,
-                                     ecrou, badge, f"{total:.2f} €"))
+                                     ecrou, badge, creance_txt, f"{total:.2f} €"),
+                             tags=(tag,))
+        self.tree.tag_configure("attente", foreground="#fbbf24")
+        self.tree.tag_configure("soldee", foreground="#4ade80")
         self.dtree.delete(*self.dtree.get_children())
 
     def _show_detail(self, _=None):
@@ -3067,6 +3083,31 @@ class HistoriqueWindow(tk.Toplevel):
             self.dtree.insert("", "end", iid=str(lid),
                               values=(pid, nom, qte,
                                       f"{prix:.2f} €", f"{total_l:.2f} €"))
+
+    def _basculer_creance(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showinfo("Sélection",
+                "Sélectionnez d'abord un bon dans la liste.", parent=self)
+            return
+        bid = int(sel[0])
+        info = db.get_bon_creance_info(bid)
+        if info is None:
+            return
+        est_creance, soldee, nom_creance = info
+        if not est_creance:
+            messagebox.showinfo("Pas une créance",
+                "Ce bon n'est pas marqué comme créance, il n'y a pas d'état à basculer.",
+                parent=self)
+            return
+        nouvel_etat = not soldee
+        db.marquer_creance_soldee(bid, nouvel_etat)
+        self._load()
+        self.tree.selection_set(str(bid))
+        etat_txt = "récupéré" if nouvel_etat else "en attente"
+        messagebox.showinfo("Créance mise à jour",
+            f"La créance de « {nom_creance} » est maintenant : {etat_txt}.",
+            parent=self)
 
     def _supprimer_ligne(self):
         """Supprime une ligne individuelle du bon dans la DB."""
