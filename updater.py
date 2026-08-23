@@ -27,7 +27,7 @@ import urllib.error
 # Version actuelle de l'application
 # À incrémenter à chaque nouvelle release (doit correspondre au tag "vX.Y")
 # ─────────────────────────────────────────────
-APP_VERSION = "5.3"
+APP_VERSION = "5.4"
 
 GITHUB_REPO = "ljames68110-hub/cantine-app"
 GITHUB_API_LATEST = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
