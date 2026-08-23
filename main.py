@@ -2836,6 +2836,9 @@ class CreancesWindow(tk.Toplevel):
         tk.Button(bbar, text="↩️  Remettre en attente", command=self._remettre_attente,
                   font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
                   cursor="hand2", pady=6, padx=10).pack(side="right", padx=4, pady=6)
+        tk.Button(bbar, text="🧾  Récap PDF de la personne", command=self._recap_pdf,
+                  font=("Helvetica",9,"bold"), bg="#7c3aed", fg="white", bd=0,
+                  cursor="hand2", pady=6, padx=10).pack(side="right", padx=4, pady=6)
 
         s = ttk.Style(); s.theme_use("clam")
         s.configure("Treeview", background=CARD_BG, foreground=TEXT,
@@ -2882,6 +2885,43 @@ class CreancesWindow(tk.Toplevel):
         if not sel: return
         db.marquer_creance_soldee(int(sel[0]), False)
         self._load()
+
+    def _recap_pdf(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showinfo("Sélection",
+                "Sélectionnez une créance de la personne concernée dans la liste.",
+                parent=self)
+            return
+        # Le nom du débiteur est la 2e valeur de la ligne (colonne "Nom")
+        vals = self.tree.item(sel[0], "values")
+        nom_personne = vals[1] if len(vals) > 1 else ""
+        if not nom_personne:
+            messagebox.showinfo("Nom manquant",
+                "Cette créance n'a pas de nom associé.", parent=self)
+            return
+
+        bons = db.get_creances_personne(nom_personne, uniquement_actives=False)
+        if not bons:
+            messagebox.showinfo("Aucun article",
+                f"Aucun bon trouvé pour « {nom_personne} ».", parent=self)
+            return
+
+        nom_fichier = "recap_creance_" + \
+            "".join(ch if ch.isalnum() else "_" for ch in nom_personne) + ".pdf"
+        chemin = filedialog.asksaveasfilename(
+            parent=self, title=f"Enregistrer le récapitulatif — {nom_personne}",
+            defaultextension=".pdf", initialfile=nom_fichier,
+            filetypes=[("PDF", "*.pdf"), ("Tous les fichiers", "*.*")])
+        if not chemin:
+            return
+        try:
+            impression.generer_recap_creance_pdf(nom_personne, bons, chemin)
+        except Exception as e:
+            messagebox.showerror("Récapitulatif",
+                f"Échec de la génération du PDF :\n{e}", parent=self)
+            return
+        _open_file(chemin)
 
     def _exporter(self):
         from datetime import datetime as _dt

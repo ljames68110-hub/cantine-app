@@ -200,3 +200,129 @@ def _trunc(c, text, max_pts, font, size):
     while text and c.stringWidth(text, font, size) > max_pts:
         text = text[:-1]
     return text
+
+
+# ═════════════════════════════════════════════════════════════════════════
+#  RÉCAPITULATIF DE CRÉANCE — tableau noir sur blanc, tous bons regroupés
+# ═════════════════════════════════════════════════════════════════════════
+def generer_recap_creance_pdf(nom_personne, bons, output_path):
+    """
+    Génère un PDF récapitulatif noir sur blanc pour une personne débitrice.
+
+    nom_personne : nom affiché en tête du récapitulatif.
+    bons : liste de dicts, un par bon-créance :
+        {
+          "categorie": str,
+          "date": str,
+          "soldee": bool,
+          "lignes": [ {"id","nom","qte","prix","total"}, ... ]
+        }
+    output_path : chemin du PDF à créer.
+    """
+    c = pdfcanvas.Canvas(output_path, pagesize=A4)
+    ML = 1.5 * cm          # marge gauche
+    MR = 1.5 * cm          # marge droite
+    PW = W - ML - MR       # largeur utile
+
+    # Colonnes : Code | Catégorie | Désignation | Qté | P.U. | Total
+    COL_CODE = 1.6 * cm
+    COL_CAT  = 2.8 * cm
+    COL_QTE  = 1.2 * cm
+    COL_PU   = 2.0 * cm
+    COL_TOT  = 2.2 * cm
+    COL_DES  = PW - COL_CODE - COL_CAT - COL_QTE - COL_PU - COL_TOT
+    ROW_H    = 0.62 * cm
+    HEADER_H = 0.7 * cm
+
+    x_code = ML
+    x_cat  = x_code + COL_CODE
+    x_des  = x_cat + COL_CAT
+    x_qte  = x_des + COL_DES
+    x_pu   = x_qte + COL_QTE
+    x_tot  = x_pu + COL_PU
+
+    def entete_page(premier=False):
+        """Dessine le titre (1re page) et l'en-tête de tableau. Retourne y courant."""
+        y = H - 1.5 * cm
+        if premier:
+            c.setFillColorRGB(0, 0, 0)
+            c.setFont(BOLD, 16)
+            c.drawString(ML, y, "RÉCAPITULATIF DE CRÉANCE")
+            y -= 0.75 * cm
+            c.setFont(BOLD, 12)
+            c.drawString(ML, y, f"Débiteur : {nom_personne}")
+            c.setFont(NORM, 9)
+            from datetime import datetime as _dt
+            c.drawRightString(W - MR, y, f"Édité le {_dt.now().strftime('%d/%m/%Y')}")
+            y -= 0.85 * cm
+        # En-tête de tableau
+        c.setLineWidth(1.0)
+        c.setStrokeColorRGB(0, 0, 0)
+        c.setFillColorRGB(0, 0, 0)
+        for x, w in [(x_code,COL_CODE),(x_cat,COL_CAT),(x_des,COL_DES),
+                     (x_qte,COL_QTE),(x_pu,COL_PU),(x_tot,COL_TOT)]:
+            c.rect(x, y - HEADER_H, w, HEADER_H, fill=0, stroke=1)
+        ty = y - HEADER_H + 0.22 * cm
+        c.setFont(BOLD, 8)
+        c.drawCentredString(x_code + COL_CODE/2, ty, "Code")
+        c.drawCentredString(x_cat  + COL_CAT/2,  ty, "Catégorie")
+        c.drawString       (x_des  + 0.15*cm,    ty, "Désignation")
+        c.drawCentredString(x_qte  + COL_QTE/2,  ty, "Qté")
+        c.drawCentredString(x_pu   + COL_PU/2,   ty, "P.U.")
+        c.drawCentredString(x_tot  + COL_TOT/2,  ty, "Total")
+        return y - HEADER_H
+
+    def ligne_cells(y):
+        for x, w in [(x_code,COL_CODE),(x_cat,COL_CAT),(x_des,COL_DES),
+                     (x_qte,COL_QTE),(x_pu,COL_PU),(x_tot,COL_TOT)]:
+            c.rect(x, y - ROW_H, w, ROW_H, fill=0, stroke=1)
+
+    y = entete_page(premier=True)
+    c.setLineWidth(0.5)
+    total_general = 0.0
+
+    for bon in bons:
+        cat  = bon.get("categorie", "")
+        date = bon.get("date", "")
+        for l in bon.get("lignes", []):
+            # Saut de page si nécessaire
+            if y - ROW_H < 2.2 * cm:
+                c.showPage()
+                y = entete_page(premier=False)
+                c.setLineWidth(0.5)
+
+            ligne_cells(y)
+            ty = y - ROW_H + 0.20 * cm
+            qte  = l.get("qte", 0) or 0
+            prix = float(l.get("prix", 0) or 0)
+            tot_l = float(l.get("total", prix * qte) or 0)
+            total_general += tot_l
+
+            c.setFillColorRGB(0, 0, 0)
+            c.setFont(NORM, 8)
+            c.drawCentredString(x_code + COL_CODE/2, ty, _num_id(l.get("id","")))
+            c.drawCentredString(x_cat  + COL_CAT/2,  ty, _trunc(c, cat, COL_CAT-0.2*cm, NORM, 7))
+            c.drawString       (x_des  + 0.15*cm,    ty, _trunc(c, str(l.get("nom","")), COL_DES-0.3*cm, NORM, 8))
+            c.drawCentredString(x_qte  + COL_QTE/2,  ty, str(qte))
+            c.drawRightString  (x_pu   + COL_PU-0.15*cm, ty, f"{prix:.2f} €")
+            c.drawRightString  (x_tot  + COL_TOT-0.15*cm, ty, f"{tot_l:.2f} €")
+            y -= ROW_H
+
+    # ── Ligne TOTAL GÉNÉRAL ──────────────────────────────────────────────
+    if y - ROW_H < 2.2 * cm:
+        c.showPage()
+        y = entete_page(premier=False)
+    c.setLineWidth(1.2)
+    label_x = x_code
+    label_w = COL_CODE + COL_CAT + COL_DES + COL_QTE + COL_PU
+    c.rect(label_x, y - ROW_H, label_w, ROW_H, fill=0, stroke=1)
+    c.rect(x_tot, y - ROW_H, COL_TOT, ROW_H, fill=0, stroke=1)
+    ty = y - ROW_H + 0.20 * cm
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont(BOLD, 10)
+    c.drawRightString(x_pu + COL_PU - 0.15*cm, ty, "TOTAL GÉNÉRAL :")
+    c.drawRightString(x_tot + COL_TOT - 0.15*cm, ty, f"{total_general:.2f} €")
+
+    c.showPage()
+    c.save()
+    return output_path

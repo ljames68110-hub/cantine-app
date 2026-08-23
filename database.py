@@ -584,6 +584,30 @@ def get_lignes_bon(bon_id):
     conn.close()
     return result
 
+def get_creances_personne(nom_creance, uniquement_actives=False):
+    """Retourne la liste des bons-créance d'une personne (par nom_creance),
+    chacun sous forme de dict {categorie, date, soldee, lignes:[...]}.
+    lignes = [{id, nom, qte, prix, total}, ...]"""
+    conn = get_connection()
+    c = conn.cursor()
+    q = "SELECT id, categorie, date, creance_soldee FROM bons WHERE est_creance=1 AND nom_creance=?"
+    if uniquement_actives:
+        q += " AND creance_soldee=0"
+    q += " ORDER BY date, id"
+    c.execute(q, (nom_creance,))
+    bons_rows = c.fetchall()
+
+    bons = []
+    for bid, cat, date, soldee in bons_rows:
+        c.execute("SELECT produit_id, designation, prix, quantite, total_ligne "
+                  "FROM lignes_bon WHERE bon_id=?", (bid,))
+        lignes = [{"id": r[0], "nom": r[1], "prix": r[2],
+                   "qte": r[3], "total": r[4]} for r in c.fetchall()]
+        bons.append({"categorie": cat, "date": date,
+                     "soldee": bool(soldee), "lignes": lignes})
+    conn.close()
+    return bons
+
 def get_budget_semaine():
     """Retourne (budget, total_depense) pour la semaine en cours."""
     from datetime import datetime, timedelta
