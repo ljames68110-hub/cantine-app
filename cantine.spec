@@ -2,11 +2,11 @@
 
 
 a = Analysis(
-    ['main.py'],
+    ['C:/Users/Yoann/Documents/cantine_app_v2/cantine_app/main.py'],
     pathex=[],
     binaries=[],
-    datas=[('cantine.db', '.'), ('cantine.ico', '.')],
-    hiddenimports=[],
+    datas=[('database.py', '.'), ('impression.py', '.')],
+    hiddenimports=['reportlab', 'reportlab.lib', 'reportlab.platypus'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -35,5 +35,4 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['cantine.ico'],
 )

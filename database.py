@@ -472,6 +472,56 @@ def get_bon_creance_info(bon_id):
     return (row[0] or 0, row[1] or 0, row[2] or "")
 
 
+def get_bon_pour_recalcul(bon_id):
+    """Retourne (categorie, [produit_ids]) d'un bon, pour recalculer ses dates
+    de livraison. None si le bon n'existe pas."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT categorie FROM bons WHERE id=?", (bon_id,))
+    row = c.fetchone()
+    if row is None:
+        conn.close()
+        return None
+    categorie = row[0]
+    c.execute("SELECT produit_id FROM lignes_bon WHERE bon_id=?", (bon_id,))
+    pids = [r[0] for r in c.fetchall()]
+    conn.close()
+    return (categorie, pids)
+
+
+def modifier_date_bon(bon_id, nouvelle_date, jour_creance=None, date_creance=None):
+    """Met à jour la date de posage d'un bon, et si fournis, les jour/date de
+    créance recalculés."""
+    conn = get_connection()
+    c = conn.cursor()
+    if jour_creance is None and date_creance is None:
+        c.execute("UPDATE bons SET date=? WHERE id=?", (nouvelle_date, bon_id))
+    else:
+        c.execute("UPDATE bons SET date=?, jour_creance=?, date_creance=? WHERE id=?",
+                  (nouvelle_date, jour_creance or "", date_creance or "", bon_id))
+    conn.commit()
+    conn.close()
+
+
+def get_creances_calendrier(uniquement_actives=True):
+    """Retourne les créances pour l'export calendrier, sous forme de liste de
+    dicts : {uid, nom, montant, categorie, date_bon, jour_creance, date_creance, soldee}."""
+    conn = get_connection()
+    c = conn.cursor()
+    q = ("SELECT uid, nom_creance, total, categorie, date, jour_creance, "
+         "date_creance, creance_soldee FROM bons WHERE est_creance=1")
+    if uniquement_actives:
+        q += " AND creance_soldee=0"
+    q += " ORDER BY date_creance, id"
+    c.execute(q)
+    rows = c.fetchall()
+    conn.close()
+    return [{"uid": r[0] or "", "nom": r[1] or "", "montant": r[2] or 0.0,
+             "categorie": r[3] or "", "date_bon": r[4] or "",
+             "jour_creance": r[5] or "", "date_creance": r[6] or "",
+             "soldee": bool(r[7])} for r in rows]
+
+
 # ─────────────────────────────────────────────
 # Export / Import des créances (transfert entre postes)
 # ─────────────────────────────────────────────

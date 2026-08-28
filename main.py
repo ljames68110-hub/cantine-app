@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import database as db
 import impression
 import updater
+import calendrier
 
 # ─────────────────────────────────────────────
 # THEME
@@ -66,6 +67,17 @@ def _identite_bon(nom, prenom, ecrou, batiment, cellule, date_str):
 
 
 JOURS_SEMAINE = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+
+
+def _rafraichir_feed_calendrier():
+    """Met à jour le fichier .ics OneDrive si l'option auto est activée.
+    Silencieux : n'interrompt jamais l'utilisateur en cas d'échec."""
+    try:
+        params = db.get_parametres()
+        if params.get("calendrier_auto", "0") == "1":
+            calendrier.ecrire_feed_auto(params.get("calendrier_dossier", ""))
+    except Exception:
+        pass
 
 
 def _jour_livraison_categorie(categorie):
@@ -1466,6 +1478,9 @@ class CommandeWindow(tk.Toplevel):
             est_creance=est_creance, nom_creance=nom_creance, jour_creance=jour_creance,
             date_creance=date_creance)
 
+        if est_creance:
+            _rafraichir_feed_calendrier()
+
         # ── Auto-enregistrement dans le compte cantinable ──
         try:
             db.compte_ajouter_transaction(
@@ -1619,6 +1634,98 @@ class ParametresWindow(tk.Toplevel):
         nb.add(tab_livr, text="  🚚  Livraison  ")
         self._build_livraison(tab_livr, params)
 
+        # ── Onglet 7 : Calendrier ───────────────────────────────────────
+        tab_cal = tk.Frame(nb, bg=DARK_BG)
+        nb.add(tab_cal, text="  📆  Calendrier  ")
+        self._build_calendrier(tab_cal, params)
+
+    def _build_calendrier(self, parent, params):
+        """Onglet de configuration de la synchronisation calendrier (.ics)
+        vers un dossier OneDrive, auquel One Calendar peut s'abonner."""
+        frm = tk.Frame(parent, bg=DARK_BG, padx=24, pady=16)
+        frm.pack(fill="both", expand=True)
+
+        tk.Label(frm, text="Synchronisation calendrier (One Calendar / OneDrive)",
+                 font=("Helvetica",12,"bold"), bg=DARK_BG, fg=TEXT).pack(anchor="w", pady=(0,8))
+
+        self.cal_auto_var = tk.BooleanVar(
+            value=params.get("calendrier_auto","0") == "1")
+        tk.Checkbutton(frm,
+            text="Mettre à jour automatiquement un fichier calendrier des créances",
+            variable=self.cal_auto_var,
+            bg=DARK_BG, fg=TEXT, activebackground=DARK_BG, activeforeground=TEXT,
+            selectcolor=CARD_BG, font=("Helvetica",10,"bold"),
+            anchor="w").pack(fill="x", pady=(0,8))
+
+        row = tk.Frame(frm, bg=DARK_BG); row.pack(fill="x", pady=(4,4))
+        tk.Label(row, text="Dossier OneDrive :", width=16, anchor="e",
+                 font=("Helvetica",10), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left", padx=(0,8))
+        self.cal_dossier_var = tk.StringVar(value=params.get("calendrier_dossier",""))
+        tk.Entry(row, textvariable=self.cal_dossier_var,
+                 font=("Helvetica",10), bg=CARD_BG, fg=TEXT, insertbackground=TEXT, bd=0,
+                 relief="flat", highlightthickness=1, highlightbackground=BORDER,
+                 highlightcolor=ACCENT).pack(side="left", fill="x", expand=True, ipady=6)
+        tk.Button(row, text="…", command=self._choisir_dossier_cal,
+                  font=("Helvetica",10,"bold"), bg=CARD_BG, fg=TEXT, bd=0,
+                  cursor="hand2", padx=10).pack(side="left", padx=(6,0))
+
+        tk.Label(frm,
+            text="Choisissez un dossier de votre OneDrive (ex : Documents\\Cantine). "
+                 "L'appli y écrit et met à jour le fichier « creances_cantine.ics » "
+                 "à chaque changement de créance. OneDrive le synchronise, et vous "
+                 "abonnez One Calendar à ce fichier une seule fois.",
+            font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
+            wraplength=580, justify="left").pack(anchor="w", pady=(6,10))
+
+        btns = tk.Frame(frm, bg=DARK_BG); btns.pack(fill="x", pady=(4,4))
+        tk.Button(btns, text="💾  Enregistrer", command=self._sauvegarder_calendrier,
+                  font=("Helvetica",10,"bold"), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=8).pack(side="left", fill="x", expand=True, padx=(0,4))
+        tk.Button(btns, text="🔄  Générer maintenant", command=self._generer_feed_maintenant,
+                  font=("Helvetica",10,"bold"), bg=ACCENT, fg="white", bd=0,
+                  cursor="hand2", pady=8).pack(side="left", fill="x", expand=True, padx=(4,0))
+
+        self.cal_status_lbl = tk.Label(frm, text="", font=("Helvetica",9),
+                 bg=DARK_BG, fg=TEXT_MUTED, wraplength=580, justify="left")
+        self.cal_status_lbl.pack(anchor="w", pady=(12,10))
+
+        tk.Frame(frm, bg=BORDER, height=1).pack(fill="x", pady=(0,10))
+        tk.Label(frm, text="Comment s'abonner dans One Calendar (à faire une fois) :",
+                 font=("Helvetica",9,"bold"), bg=DARK_BG, fg=TEXT).pack(anchor="w")
+        tk.Label(frm,
+            text="1. Sur onedrive.com, ouvrez le dossier choisi, clic droit sur "
+                 "« creances_cantine.ics » → Partager → Copier le lien.\n"
+                 "2. Dans One Calendar : Réglages → Comptes → Ajouter → "
+                 "« Abonnement à un calendrier (URL/ICS) », collez le lien.\n"
+                 "3. One Calendar rafraîchit ensuite les créances automatiquement.",
+            font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
+            wraplength=580, justify="left").pack(anchor="w", pady=(2,0))
+
+    def _choisir_dossier_cal(self):
+        dossier = filedialog.askdirectory(parent=self,
+                    title="Choisir le dossier OneDrive pour le calendrier")
+        if dossier:
+            self.cal_dossier_var.set(dossier)
+
+    def _sauvegarder_calendrier(self):
+        db.set_parametre("calendrier_auto", "1" if self.cal_auto_var.get() else "0")
+        db.set_parametre("calendrier_dossier", self.cal_dossier_var.get().strip())
+        messagebox.showinfo("Enregistré",
+            "Paramètres calendrier enregistrés.", parent=self)
+
+    def _generer_feed_maintenant(self):
+        dossier = self.cal_dossier_var.get().strip()
+        if not dossier:
+            self.cal_status_lbl.config(text="❌ Indiquez d'abord un dossier.", fg=DANGER)
+            return
+        chemin = calendrier.ecrire_feed_auto(dossier)
+        if chemin:
+            self.cal_status_lbl.config(
+                text=f"✅ Fichier calendrier écrit :\n{chemin}", fg=SUCCESS)
+        else:
+            self.cal_status_lbl.config(
+                text="❌ Dossier introuvable ou erreur d'écriture.", fg=DANGER)
+
     def _build_livraison(self, parent, params):
         """Onglet de configuration du cycle ramassage/distribution et du
         jour de livraison par défaut de chaque catégorie."""
@@ -1722,7 +1829,54 @@ class ParametresWindow(tk.Toplevel):
                  "S'active aussi automatiquement si l'invité clique sur "
                  "« Annuler » à l'écran d'identification.",
             font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
-            wraplength=560, justify="left").pack(anchor="w", pady=(0,18))
+            wraplength=560, justify="left").pack(anchor="w", pady=(0,14))
+
+        tk.Frame(frm, bg=BORDER, height=1).pack(fill="x", pady=(0,12))
+
+        # ── Mode d'impression : couleur ou noir sur papier pré-imprimé ───────
+        tk.Label(frm, text="Mode d'impression",
+                 font=("Helvetica",13,"bold"), bg=DARK_BG, fg=TEXT).pack(anchor="w", pady=(0,8))
+        self.impression_mode_var = tk.StringVar(value=params.get("impression_mode","couleur"))
+        tk.Radiobutton(frm,
+            text="🎨  Bon complet en couleur (l'appli imprime tout, fond compris)",
+            value="couleur", variable=self.impression_mode_var,
+            bg=DARK_BG, fg=TEXT, activebackground=DARK_BG, activeforeground=TEXT,
+            selectcolor=CARD_BG, font=("Helvetica",10), anchor="w").pack(fill="x", pady=2)
+        tk.Radiobutton(frm,
+            text="🖨️  Texte noir seul (sur papier pré-imprimé fourni) — économie d'encre",
+            value="noir", variable=self.impression_mode_var,
+            bg=DARK_BG, fg=TEXT, activebackground=DARK_BG, activeforeground=TEXT,
+            selectcolor=CARD_BG, font=("Helvetica",10), anchor="w").pack(fill="x", pady=2)
+
+        tk.Label(frm,
+            text="En mode « texte noir seul », l'appli n'imprime que les valeurs "
+                 "(nom, écrou, articles, date, signature) en noir — les fonds de "
+                 "couleur, cadres et libellés du papier de l'administration ne sont "
+                 "pas réimprimés. Zéro encre couleur.",
+            font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
+            wraplength=560, justify="left").pack(anchor="w", pady=(4,10))
+
+        # ── Calage fin (offsets en mm) ───────────────────────────────────────
+        cal = tk.Frame(frm, bg=DARK_BG); cal.pack(fill="x", pady=(0,4))
+        tk.Label(cal, text="Calage (mm) — décalage horizontal :", anchor="w",
+                 font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left")
+        self.offset_x_var = tk.StringVar(value=params.get("impression_offset_x","0"))
+        tk.Spinbox(cal, from_=-30, to=30, increment=1, textvariable=self.offset_x_var,
+                   width=5, font=("Helvetica",9), bg=CARD_BG, fg=TEXT, bd=0,
+                   buttonbackground=CARD_BG, insertbackground=TEXT).pack(side="left", padx=6)
+        tk.Label(cal, text="  vertical :", anchor="w",
+                 font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left")
+        self.offset_y_var = tk.StringVar(value=params.get("impression_offset_y","0"))
+        tk.Spinbox(cal, from_=-30, to=30, increment=1, textvariable=self.offset_y_var,
+                   width=5, font=("Helvetica",9), bg=CARD_BG, fg=TEXT, bd=0,
+                   buttonbackground=CARD_BG, insertbackground=TEXT).pack(side="left", padx=6)
+
+        tk.Label(frm,
+            text="Si le texte est légèrement décalé sur le papier pré-imprimé, ajustez "
+                 "ici : + horizontal décale vers la droite, + vertical vers le haut. "
+                 "Faites un test d'impression, puis ajustez de quelques mm si besoin.",
+            font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
+            wraplength=560, justify="left").pack(anchor="w", pady=(4,18))
 
         tk.Button(frm, text="💾  Enregistrer", command=self._sauvegarder_impression,
                   font=("Helvetica",11,"bold"), bg=SUCCESS, fg="white", bd=0,
@@ -1731,8 +1885,16 @@ class ParametresWindow(tk.Toplevel):
     def _sauvegarder_impression(self):
         db.set_parametre("bon_sans_identite",
                          "1" if self.sans_identite_var.get() else "0")
+        db.set_parametre("impression_mode", self.impression_mode_var.get())
+        for cle, var in [("impression_offset_x", self.offset_x_var),
+                         ("impression_offset_y", self.offset_y_var)]:
+            try:
+                v = str(int(var.get()))
+            except ValueError:
+                v = "0"
+            db.set_parametre(cle, v)
         messagebox.showinfo("Enregistré",
-            "Paramètre d'impression enregistré.", parent=self)
+            "Paramètres d'impression enregistrés.", parent=self)
 
     def _build_maj(self, parent, params):
         """Onglet de configuration et de vérification des mises à jour."""
@@ -2805,6 +2967,9 @@ class CreancesWindow(tk.Toplevel):
         tk.Button(fbar, text="📤  Exporter", command=self._exporter,
                   font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
                   cursor="hand2", pady=5, padx=12).pack(side="right", padx=4, pady=6)
+        tk.Button(fbar, text="📆  Calendrier (.ics)", command=self._exporter_ics,
+                  font=("Helvetica",9), bg="#0e7490", fg="white", bd=0,
+                  cursor="hand2", pady=5, padx=12).pack(side="right", padx=4, pady=6)
 
         cols = ("id","nom","montant","jour","date_recup","date_bon","categorie","statut")
         self.tree = ttk.Treeview(self, columns=cols, show="headings", selectmode="browse")
@@ -2835,6 +3000,9 @@ class CreancesWindow(tk.Toplevel):
                   cursor="hand2", pady=6, padx=10).pack(side="right", padx=8, pady=6)
         tk.Button(bbar, text="↩️  Remettre en attente", command=self._remettre_attente,
                   font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
+                  cursor="hand2", pady=6, padx=10).pack(side="right", padx=4, pady=6)
+        tk.Button(bbar, text="📅  Modifier la date", command=self._modifier_date,
+                  font=("Helvetica",9), bg="#b45309", fg="white", bd=0,
                   cursor="hand2", pady=6, padx=10).pack(side="right", padx=4, pady=6)
         tk.Button(bbar, text="🧾  Récap PDF de la personne", command=self._recap_pdf,
                   font=("Helvetica",9,"bold"), bg="#7c3aed", fg="white", bd=0,
@@ -2878,12 +3046,14 @@ class CreancesWindow(tk.Toplevel):
         sel = self.tree.selection()
         if not sel: return
         db.marquer_creance_soldee(int(sel[0]), True)
+        _rafraichir_feed_calendrier()
         self._load()
 
     def _remettre_attente(self):
         sel = self.tree.selection()
         if not sel: return
         db.marquer_creance_soldee(int(sel[0]), False)
+        _rafraichir_feed_calendrier()
         self._load()
 
     def _recap_pdf(self):
@@ -2923,6 +3093,79 @@ class CreancesWindow(tk.Toplevel):
             return
         _open_file(chemin)
 
+    def _modifier_date(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showinfo("Sélection",
+                "Sélectionnez d'abord une créance dans la liste.", parent=self)
+            return
+        bid = int(sel[0])
+        vals = self.tree.item(sel[0], "values")
+        date_actuelle = vals[5] if len(vals) > 5 else ""   # colonne "Date du bon"
+
+        nouvelle = simpledialog.askstring(
+            "Modifier la date de posage",
+            "Nouvelle date de posage du bon (jj/mm/aaaa) :",
+            initialvalue=date_actuelle, parent=self)
+        if nouvelle is None:
+            return
+        nouvelle = nouvelle.strip()
+        try:
+            date_obj = datetime.strptime(nouvelle, "%d/%m/%Y")
+        except ValueError:
+            messagebox.showwarning("Date invalide",
+                "Format attendu : jj/mm/aaaa (ex : 07/08/2026).", parent=self)
+            return
+
+        # Recalcule les dates de livraison/récupération à partir de la nouvelle date
+        infos_bon = db.get_bon_pour_recalcul(bid)
+        jour_creance = date_creance = ""
+        if infos_bon:
+            categorie, pids = infos_bon
+            produits_ref = db.get_produits(actif_only=False)
+            commande = {pid: {} for pid in pids}
+            infos = _infos_livraison_commande(commande, produits_ref, categorie,
+                                              date_creation=date_obj)
+            jour_creance = ", ".join(j for j, _ in infos if j)
+            date_creance = infos[0][1].strftime("%d/%m/%Y")
+
+        db.modifier_date_bon(bid, nouvelle, jour_creance, date_creance)
+        _rafraichir_feed_calendrier()
+        self._load()
+        self.tree.selection_set(str(bid))
+        messagebox.showinfo("Date modifiée",
+            f"Date de posage mise à jour : {nouvelle}\n"
+            f"Nouvelle date de livraison/récupération estimée : {date_creance or '—'}",
+            parent=self)
+
+    def _exporter_ics(self):
+        from datetime import datetime as _dt
+        # Inclut actives + soldées si la case est cochée, sinon actives seulement
+        actives_seules = not self.afficher_soldees_var.get()
+        creances = db.get_creances_calendrier(uniquement_actives=actives_seules)
+        if not creances:
+            messagebox.showinfo("Calendrier",
+                "Aucune créance à exporter vers le calendrier.", parent=self)
+            return
+        nom_defaut = f"creances_calendrier_{_dt.now().strftime('%Y-%m-%d')}.ics"
+        chemin = filedialog.asksaveasfilename(
+            parent=self, title="Exporter vers le calendrier (.ics)",
+            defaultextension=".ics", initialfile=nom_defaut,
+            filetypes=[("Fichier calendrier", "*.ics"), ("Tous les fichiers", "*.*")])
+        if not chemin:
+            return
+        try:
+            n = calendrier.generer_ics_creances(creances, chemin)
+        except Exception as e:
+            messagebox.showerror("Calendrier",
+                f"Échec de la génération du calendrier :\n{e}", parent=self)
+            return
+        if messagebox.askyesno("Calendrier créé",
+                f"{n} événement(s) écrit(s) dans :\n{chemin}\n\n"
+                "Voulez-vous ouvrir ce fichier maintenant pour l'importer "
+                "dans votre agenda (One Calendar, Google, Outlook) ?", parent=self):
+            _open_file(chemin)
+
     def _exporter(self):
         from datetime import datetime as _dt
         nom_defaut = f"creances_{_dt.now().strftime('%Y-%m-%d')}.json"
@@ -2957,6 +3200,7 @@ class CreancesWindow(tk.Toplevel):
             messagebox.showerror("Import", f"Échec de l'import :\n{e}", parent=self)
             return
         self._load()
+        _rafraichir_feed_calendrier()
         messagebox.showinfo("Import réussi",
             f"{ajoutees} nouvelle(s) créance(s) ajoutée(s).\n"
             f"{maj} créance(s) existante(s) mise(s) à jour.", parent=self)
@@ -3142,6 +3386,7 @@ class HistoriqueWindow(tk.Toplevel):
             return
         nouvel_etat = not soldee
         db.marquer_creance_soldee(bid, nouvel_etat)
+        _rafraichir_feed_calendrier()
         self._load()
         self.tree.selection_set(str(bid))
         etat_txt = "récupéré" if nouvel_etat else "en attente"

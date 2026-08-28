@@ -36,6 +36,18 @@ def generer_bon_pdf(categorie, nom, prenom, ecrou, batiment, cellule,
 
     c = pdfcanvas.Canvas(output_path, pagesize=A4)
 
+    # ── Mode d'impression + calage (lus en DB) ───────────────────────────────
+    mode_noir = False
+    off_x = off_y = 0.0
+    try:
+        import database as _dbm
+        _p = _dbm.get_parametres()
+        mode_noir = _p.get("impression_mode", "couleur") == "noir"
+        off_x = float(_p.get("impression_offset_x", "0") or 0) * cm / 10.0  # mm -> pts
+        off_y = float(_p.get("impression_offset_y", "0") or 0) * cm / 10.0
+    except Exception:
+        pass
+
     # Couleur personnalisée stockée en DB ?
     try:
         import database as _db
@@ -54,13 +66,16 @@ def generer_bon_pdf(categorie, nom, prenom, ecrou, batiment, cellule,
     except Exception:
         bg = BG.get(categorie, DEFAULT_BG)
 
-    # Fond coloré pleine page
-    c.setFillColorRGB(*bg)
-    c.rect(0, 0, W, H, fill=1, stroke=0)
-    c.setFillColorRGB(0, 0, 0)
+    # En mode noir, le papier pré-imprimé fournit déjà les fonds/cadres/libellés :
+    # on n'imprime que les valeurs (économie d'encre couleur).
+    if not mode_noir:
+        # Fond coloré pleine page
+        c.setFillColorRGB(*bg)
+        c.rect(0, 0, W, H, fill=1, stroke=0)
+        c.setFillColorRGB(0, 0, 0)
 
-    ML = 1.75 * cm
-    PW = W - 2 * ML
+    ML = 1.75 * cm + off_x
+    PW = W - 2 * (1.75 * cm)
 
     X_NOM      = ML
     X_ECROU    = ML + PW * 0.55
@@ -71,7 +86,7 @@ def generer_bon_pdf(categorie, nom, prenom, ecrou, batiment, cellule,
     LBL = 16
     VAL = 13
 
-    y = H - 1.55 * cm
+    y = H - 1.55 * cm + off_y
 
     # Décalages fixes alignés
     OFF_NOM      = c.stringWidth("NOM",      BOLD, LBL) + 10
@@ -81,9 +96,11 @@ def generer_bon_pdf(categorie, nom, prenom, ecrou, batiment, cellule,
     OFF_CELLULE  = c.stringWidth("CELLULE",  BOLD, LBL) + 10
 
     # ── LIGNE 1 : NOM [val]   ECROU [val] ────────────────────────────────────
-    c.setFont(BOLD, LBL)
-    c.drawString(X_NOM,   y, "NOM")
-    c.drawString(X_ECROU, y, "ECROU")
+    if not mode_noir:
+        c.setFont(BOLD, LBL)
+        c.drawString(X_NOM,   y, "NOM")
+        c.drawString(X_ECROU, y, "ECROU")
+    c.setFillColorRGB(0, 0, 0)
     c.setFont(NORM, VAL)
     c.drawString(X_NOM   + OFF_NOM,   y, (nom   or "").upper())
     c.drawString(X_ECROU + OFF_ECROU, y, str(ecrou or ""))
@@ -91,10 +108,11 @@ def generer_bon_pdf(categorie, nom, prenom, ecrou, batiment, cellule,
     y -= 1.10 * cm
 
     # ── LIGNE 2 : PRENOM [val]  BATIMENT [val]  CELLULE [val] ────────────────
-    c.setFont(BOLD, LBL)
-    c.drawString(X_PRENOM,   y, "PRENOM")
-    c.drawString(X_BATIMENT, y, "BATIMENT")
-    c.drawString(X_CELLULE,  y, "CELLULE")
+    if not mode_noir:
+        c.setFont(BOLD, LBL)
+        c.drawString(X_PRENOM,   y, "PRENOM")
+        c.drawString(X_BATIMENT, y, "BATIMENT")
+        c.drawString(X_CELLULE,  y, "CELLULE")
     c.setFont(NORM, VAL)
     c.drawString(X_PRENOM   + OFF_PRENOM,   y, str(prenom   or ""))
     c.drawString(X_BATIMENT + OFF_BATIMENT, y, str(batiment or ""))
@@ -102,15 +120,16 @@ def generer_bon_pdf(categorie, nom, prenom, ecrou, batiment, cellule,
 
     y -= 1.05 * cm
 
-    # ── ENCADRÉ CATÉGORIE — même couleur que le fond ─────────────────────────
+    # ── ENCADRÉ CATÉGORIE ────────────────────────────────────────────────────
     BOX_H = 1.30 * cm
-    c.setFillColorRGB(*bg)
-    c.setStrokeColorRGB(0, 0, 0)
-    c.setLineWidth(1.5)
-    c.rect(ML, y - BOX_H, PW, BOX_H, fill=1, stroke=1)
-    c.setFillColorRGB(0, 0, 0)
-    c.setFont(BOLD, 22)
-    c.drawCentredString(W / 2, y - BOX_H + 0.30 * cm, categorie.upper())
+    if not mode_noir:
+        c.setFillColorRGB(*bg)
+        c.setStrokeColorRGB(0, 0, 0)
+        c.setLineWidth(1.5)
+        c.rect(ML, y - BOX_H, PW, BOX_H, fill=1, stroke=1)
+        c.setFillColorRGB(0, 0, 0)
+        c.setFont(BOLD, 22)
+        c.drawCentredString(W / 2, y - BOX_H + 0.30 * cm, categorie.upper())
     y -= BOX_H + 0.45 * cm
 
     # ── TABLEAU ──────────────────────────────────────────────────────────────
@@ -120,26 +139,28 @@ def generer_bon_pdf(categorie, nom, prenom, ecrou, batiment, cellule,
     ROW_H   = (y - 1.80 * cm) / (TOTAL_ROWS + 1)
 
     # En-tête
-    c.setLineWidth(1.0)
-    _cell(c, ML,                    y, COL_NO,  ROW_H, bg)
-    _cell(c, ML + COL_NO,           y, COL_QTE, ROW_H, bg)
-    _cell(c, ML + COL_NO + COL_QTE, y, COL_DES, ROW_H, bg)
-    mid_y = y - ROW_H * 0.5 - 0.13 * cm
-    c.setFillColorRGB(0, 0, 0)
-    c.setFont(BOLD, 9)
-    c.drawCentredString(ML + COL_NO / 2,                      mid_y, "N°")
-    c.drawCentredString(ML + COL_NO + COL_QTE / 2,            mid_y, "Qté")
-    c.setFont(NORM, 8)
-    c.drawCentredString(ML + COL_NO + COL_QTE + COL_DES / 2, mid_y, "DESIGNATION")
+    if not mode_noir:
+        c.setLineWidth(1.0)
+        _cell(c, ML,                    y, COL_NO,  ROW_H, bg)
+        _cell(c, ML + COL_NO,           y, COL_QTE, ROW_H, bg)
+        _cell(c, ML + COL_NO + COL_QTE, y, COL_DES, ROW_H, bg)
+        mid_y = y - ROW_H * 0.5 - 0.13 * cm
+        c.setFillColorRGB(0, 0, 0)
+        c.setFont(BOLD, 9)
+        c.drawCentredString(ML + COL_NO / 2,                      mid_y, "N°")
+        c.drawCentredString(ML + COL_NO + COL_QTE / 2,            mid_y, "Qté")
+        c.setFont(NORM, 8)
+        c.drawCentredString(ML + COL_NO + COL_QTE + COL_DES / 2, mid_y, "DESIGNATION")
 
     y -= ROW_H
     c.setLineWidth(0.5)
 
-    # Lignes — même couleur de fond partout
+    # Lignes
     for i in range(TOTAL_ROWS):
-        _cell(c, ML,                    y, COL_NO,  ROW_H, bg)
-        _cell(c, ML + COL_NO,           y, COL_QTE, ROW_H, bg)
-        _cell(c, ML + COL_NO + COL_QTE, y, COL_DES, ROW_H, bg)
+        if not mode_noir:
+            _cell(c, ML,                    y, COL_NO,  ROW_H, bg)
+            _cell(c, ML + COL_NO,           y, COL_QTE, ROW_H, bg)
+            _cell(c, ML + COL_NO + COL_QTE, y, COL_DES, ROW_H, bg)
 
         if i < len(lignes):
             ligne  = lignes[i]
@@ -183,8 +204,12 @@ def generer_bon_pdf(categorie, nom, prenom, ecrou, batiment, cellule,
     # Texte tout en bas
     c.setFillColorRGB(0, 0, 0)
     c.setFont(NORM, 10)
-    c.drawString(ML,    DATE_Y, f"Date:   {date_str}")
-    c.drawString(SIG_X, DATE_Y, "Signature:")
+    if mode_noir:
+        # Labels "Date:" / "Signature:" déjà pré-imprimés : on place juste la valeur
+        c.drawString(ML + 1.4 * cm, DATE_Y, str(date_str))
+    else:
+        c.drawString(ML,    DATE_Y, f"Date:   {date_str}")
+        c.drawString(SIG_X, DATE_Y, "Signature:")
 
     c.save()
     return output_path
