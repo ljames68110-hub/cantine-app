@@ -1,4 +1,4 @@
-"""
+﻿"""
 updater.py — Gestion des mises à jour de Gestion Cantine.
 
 Trois sources possibles (configurables dans Paramètres > Mises à jour) :
@@ -27,7 +27,7 @@ import urllib.error
 # Version actuelle de l'application
 # À incrémenter à chaque nouvelle release (doit correspondre au tag "vX.Y")
 # ─────────────────────────────────────────────
-APP_VERSION = "6.1"
+APP_VERSION = "6.3"
 
 GITHUB_REPO = "ljames68110-hub/cantine-app"
 GITHUB_API_LATEST = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"

@@ -1,0 +1,1522 @@
+[
+ {
+  "nom": "Spaghetti bolognaise",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 30 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 grande casserole (pâtes)\n• 1 grande poêle/sauteuse (sauce)\n• 1 planche, 1 couteau, 1 cuillère en bois, 1 passoire\n\n👨‍🍳 ÉTAPES\n\n1. PRÉPARER : épluchez l'oignon et coupez-le en petits morceaux. Épluchez l'ail et écrasez-le.\n2. FAIRE REVENIR : 2 c. à soupe d'huile dans la poêle à feu moyen. Ajoutez l'oignon, 3 min en remuant jusqu'à ce qu'il devienne translucide (transparent). Ajoutez l'ail, 30 s.\n3. LA VIANDE : ajoutez la viande hachée. Écrasez-la avec la cuillère pour l'émietter. 5 min jusqu'à ce qu'elle ne soit plus rose. Salez, poivrez.\n4. LA SAUCE : ajoutez le concentré de tomate, mélangez 1 min. Versez les tomates, une pincée d'herbes, sel, poivre. Feu doux, mijotez 20 min à couvert en remuant de temps en temps.\n5. LES PÂTES : grande casserole d'eau salée, portez à ébullition. Plongez les spaghetti, cuisez le temps du paquet (8-9 min). Égouttez.\n6. SERVIR : mélangez pâtes et sauce. Emmental râpé par-dessus.\n\n💡 CONSEIL : goûtez la sauce avant de servir. Trop épaisse ? Ajoutez un peu d'eau de cuisson des pâtes.",
+  "ingredients": [
+   {
+    "code": "H23",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "A126",
+    "qte": 0.25,
+    "fixe": 0
+   },
+   {
+    "code": "A117",
+    "qte": 1,
+    "fixe": 1
+   },
+   {
+    "code": "A116",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F41",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F48",
+    "qte": 0.1,
+    "fixe": 1
+   },
+   {
+    "code": "F8",
+    "qte": 0.2,
+    "fixe": 1
+   },
+   {
+    "code": "H46",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Poulet roti, pommes de terre et carottes",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 1h  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 grand plat allant au four\n• 1 économe, 1 couteau\n\n👨‍🍳 ÉTAPES\n\n1. PRÉCHAUFFEZ le four à 200°C.\n2. Épluchez et coupez les pommes de terre en gros morceaux, les carottes en rondelles.\n3. Mettez le poulet au centre du plat, les légumes autour. Arrosez d'un filet d'huile, salez, poivrez, herbes.\n4. Enfournez 1h. À mi-cuisson (30 min), retournez le poulet et remuez les légumes.\n5. Vérifiez la cuisson : le jus qui s'écoule doit être clair (pas rosé). Servez chaud.\n\n💡 CONSEIL : posez une noix de beurre sur le poulet en début de cuisson pour une peau dorée et croustillante.",
+  "ingredients": [
+   {
+    "code": "H16",
+    "qte": 0.35,
+    "fixe": 0
+   },
+   {
+    "code": "F42",
+    "qte": 0.4,
+    "fixe": 0
+   },
+   {
+    "code": "F39",
+    "qte": 0.3,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.1,
+    "fixe": 1
+   },
+   {
+    "code": "H46",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Riz saute au poulet et courgettes",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 20 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 casserole (riz)\n• 1 grande poêle ou wok\n• 1 couteau, 1 passoire\n\n👨‍🍳 ÉTAPES\n\n1. Cuisez le riz : eau bouillante salée, temps du paquet. Égouttez.\n2. Lavez les courgettes, coupez-les en petits dés. Émincez l'oignon.\n3. Poêle avec un filet d'huile, feu vif. Faites revenir l'oignon 2 min, puis les courgettes 6-8 min.\n4. Ajoutez le poulet coupé en morceaux, cuisez 5 min jusqu'à ce qu'il soit bien cuit.\n5. Ajoutez le riz cuit, mélangez 2 min. Cassez un œuf, mélangez vivement 1 min. Sel, poivre.\n\n💡 CONSEIL : feu bien vif pour que ça saute sans rendre d'eau. Ne remplissez pas trop la poêle.",
+  "ingredients": [
+   {
+    "code": "A131",
+    "qte": 0.33,
+    "fixe": 0
+   },
+   {
+    "code": "F30",
+    "qte": 0.35,
+    "fixe": 1
+   },
+   {
+    "code": "F41",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "H41",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "F13",
+    "qte": 0.17,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Tortilla pommes de terre-oignons",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 25 min  ·  Difficulté : ⭐⭐ Moyen\n\n🥘 MATÉRIEL\n• 1 poêle antiadhésive\n• 1 saladier, 1 fouet, 1 assiette\n\n👨‍🍳 ÉTAPES\n\n1. Épluchez et coupez les pommes de terre en fines rondelles, émincez l'oignon.\n2. Poêle avec de l'huile, feu moyen. Faites cuire pommes de terre + oignon 15 min à couvert, en remuant, sans colorer. Salez.\n3. Battez les œufs dans le saladier, salez, poivrez. Ajoutez les pommes de terre égouttées, mélangez.\n4. Reversez le tout dans la poêle, feu doux, 5 min.\n5. RETOURNER : posez une assiette sur la poêle, retournez d'un coup, puis refaites glisser dans la poêle pour cuire l'autre face 3-4 min.\n6. Servez tiède avec la salade.\n\n💡 CONSEIL : l'étape du retournement est la plus délicate : allez-y d'un geste franc au-dessus de l'évier.",
+  "ingredients": [
+   {
+    "code": "F13",
+    "qte": 0.44,
+    "fixe": 0
+   },
+   {
+    "code": "F42",
+    "qte": 0.3,
+    "fixe": 0
+   },
+   {
+    "code": "F41",
+    "qte": 0.3,
+    "fixe": 1
+   },
+   {
+    "code": "F50",
+    "qte": 0.33,
+    "fixe": 1
+   },
+   {
+    "code": "A102",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Tarte a la tomate et mozzarella",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 30 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 moule à tarte\n• 1 couteau\n\n👨‍🍳 ÉTAPES\n\n1. PRÉCHAUFFEZ le four à 200°C. Déroulez la pâte dans le moule, piquez le fond à la fourchette.\n2. Étalez une fine couche de moutarde sur le fond (facultatif).\n3. Lavez et coupez les tomates en rondelles, la mozzarella en tranches.\n4. Disposez tomates et mozzarella sur la pâte. Salez, poivrez, herbes, filet d'huile.\n5. Enfournez 30 min jusqu'à ce que la pâte soit dorée. Parsemez d'emmental. Servez avec la salade.\n\n💡 CONSEIL : posez les rondelles de tomate sur du papier absorbant 10 min avant : elles rendront moins d'eau.",
+  "ingredients": [
+   {
+    "code": "H31",
+    "qte": 0.67,
+    "fixe": 0
+   },
+   {
+    "code": "F43",
+    "qte": 0.2,
+    "fixe": 0
+   },
+   {
+    "code": "F20",
+    "qte": 0.67,
+    "fixe": 0
+   },
+   {
+    "code": "A110",
+    "qte": 0.1,
+    "fixe": 1
+   },
+   {
+    "code": "F8",
+    "qte": 0.2,
+    "fixe": 1
+   },
+   {
+    "code": "F50",
+    "qte": 0.33,
+    "fixe": 1
+   },
+   {
+    "code": "H46",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Merguez, semoule et legumes",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : 20 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 poêle\n• 1 saladier + assiette (semoule)\n\n👨‍🍳 ÉTAPES\n\n1. LA SEMOULE : versez la semoule dans un saladier. Ajoutez le même volume d'eau bouillante salée + un filet d'huile. Couvrez, laissez gonfler 5 min, puis égrainez à la fourchette.\n2. LES MERGUEZ : faites-les cuire à la poêle 10-12 min à feu moyen, en les retournant, jusqu'à ce qu'elles soient bien cuites.\n3. LES LÉGUMES : réchauffez les légumes couscous dans une casserole avec un peu d'épices.\n4. Servez la semoule, les merguez et les légumes ensemble.\n\n💡 CONSEIL : piquez les merguez avec une fourchette avant cuisson pour éviter qu'elles n'éclatent.",
+  "ingredients": [
+   {
+    "code": "H14",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "A132",
+    "qte": 0.2,
+    "fixe": 0
+   },
+   {
+    "code": "A99",
+    "qte": 0.33,
+    "fixe": 0
+   },
+   {
+    "code": "H40",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "H53",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Boeuf bourguignon et puree maison",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 20 min  ·  Cuisson : 2h  ·  Difficulté : ⭐⭐ Moyen\n\n🥘 MATÉRIEL\n• 1 grande cocotte\n• 1 casserole (purée)\n• 1 presse-purée\n\n👨‍🍳 ÉTAPES\n\n1. Coupez la viande en gros cubes. Émincez oignon et carottes.\n2. Cocotte avec un filet d'huile, feu vif : faites dorer la viande sur toutes les faces (5 min). Réservez.\n3. Faites revenir oignon et carottes 5 min. Remettez la viande. Saupoudrez d'un peu de farine, mélangez.\n4. Couvrez d'eau (ou bouillon), ajoutez le laurier, sel, poivre. Mijotez 2h à feu doux, à couvert. La viande doit être fondante.\n5. LA PURÉE : épluchez et coupez les pommes de terre, cuisez-les 20 min dans l'eau bouillante salée. Égouttez, écrasez avec le lait chaud et le beurre. Sel.\n6. Servez la viande nappée de sauce, avec la purée.\n\n💡 CONSEIL : plus le bourguignon mijote longtemps, plus la viande est tendre. Vous pouvez le faire la veille.",
+  "ingredients": [
+   {
+    "code": "H6",
+    "qte": 0.67,
+    "fixe": 0
+   },
+   {
+    "code": "F42",
+    "qte": 0.4,
+    "fixe": 0
+   },
+   {
+    "code": "F12",
+    "qte": 0.3,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.25,
+    "fixe": 1
+   },
+   {
+    "code": "F39",
+    "qte": 0.2,
+    "fixe": 1
+   },
+   {
+    "code": "F41",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "A113",
+    "qte": 0.1,
+    "fixe": 1
+   },
+   {
+    "code": "A116",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Penne a la creme et lardons de volaille",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : 20 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 casserole (pâtes)\n• 1 poêle\n\n👨‍🍳 ÉTAPES\n\n1. Cuisez les penne dans l'eau bouillante salée (temps du paquet). Égouttez.\n2. Poêle sans matière grasse : faites revenir les lardons de volaille 5 min jusqu'à ce qu'ils soient dorés.\n3. Baissez le feu, versez la crème, mélangez, laissez chauffer 2 min sans bouillir. Poivrez.\n4. Ajoutez les pâtes égouttées, un œuf battu hors du feu (facultatif, pour lier). Mélangez.\n5. Servez avec l'emmental râpé.\n\n💡 CONSEIL : ne faites pas bouillir la crème, elle pourrait tourner. Feu doux suffit.",
+  "ingredients": [
+   {
+    "code": "H13",
+    "qte": 0.67,
+    "fixe": 0
+   },
+   {
+    "code": "A125",
+    "qte": 0.25,
+    "fixe": 0
+   },
+   {
+    "code": "F15",
+    "qte": 0.67,
+    "fixe": 0
+   },
+   {
+    "code": "F8",
+    "qte": 0.25,
+    "fixe": 1
+   },
+   {
+    "code": "F13",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Escalopes de poulet panees et haricots verts",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 15 min  ·  Difficulté : ⭐⭐ Moyen\n\n🥘 MATÉRIEL\n• 3 assiettes creuses\n• 1 poêle\n\n👨‍🍳 ÉTAPES\n\n1. Préparez 3 assiettes : farine / œuf battu / chapelure (pain émietté).\n2. Passez chaque escalope dans la farine, puis l'œuf, puis la chapelure. Appuyez bien.\n3. Poêle avec de l'huile, feu moyen. Cuisez les escalopes 4-5 min de chaque côté jusqu'à ce qu'elles soient dorées et cuites à cœur.\n4. LES HARICOTS : réchauffez-les à la poêle avec une noix de beurre et un peu d'ail, 5 min.\n5. Servez ensemble.\n\n💡 CONSEIL : n'ayez pas la poêle trop chaude, sinon la panure brûle avant que le poulet soit cuit.",
+  "ingredients": [
+   {
+    "code": "H10",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "A89",
+    "qte": 0.67,
+    "fixe": 0
+   },
+   {
+    "code": "F13",
+    "qte": 0.33,
+    "fixe": 1
+   },
+   {
+    "code": "A78",
+    "qte": 0.1,
+    "fixe": 1
+   },
+   {
+    "code": "A31",
+    "qte": 0.25,
+    "fixe": 1
+   },
+   {
+    "code": "F48",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Gratin de pommes de terre et saucisses",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 20 min  ·  Cuisson : 45 min  ·  Difficulté : ⭐⭐ Moyen\n\n🥘 MATÉRIEL\n• 1 plat à gratin\n• 1 casserole, 1 économe\n\n👨‍🍳 ÉTAPES\n\n1. PRÉCHAUFFEZ le four à 190°C.\n2. Épluchez et coupez les pommes de terre en fines rondelles.\n3. Précuisez-les 10 min dans le lait chaud avec du sel (ça accélère le gratin).\n4. Versez pommes de terre + lait dans le plat. Ajoutez la crème, l'ail, poivre. Parsemez d'emmental et de noisettes de beurre.\n5. Coupez les saucisses en rondelles, répartissez dessus.\n6. Enfournez 45 min jusqu'à ce que le dessus soit doré et les pommes de terre tendres (vérifiez à la pointe du couteau).\n\n💡 CONSEIL : les rondelles doivent être fines et régulières pour une cuisson homogène.",
+  "ingredients": [
+   {
+    "code": "H20",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "F42",
+    "qte": 0.4,
+    "fixe": 0
+   },
+   {
+    "code": "F12",
+    "qte": 0.5,
+    "fixe": 1
+   },
+   {
+    "code": "F15",
+    "qte": 0.33,
+    "fixe": 1
+   },
+   {
+    "code": "F8",
+    "qte": 0.5,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F48",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Tajine de poulet aux carottes et pommes de terre",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 20 min  ·  Cuisson : 45 min  ·  Difficulté : ⭐⭐ Moyen\n\n🥘 MATÉRIEL\n• 1 grande cocotte ou tajine\n\n👨‍🍳 ÉTAPES\n\n1. Émincez l'oignon. Épluchez carottes et pommes de terre, coupez-les en gros morceaux.\n2. Cocotte avec un filet d'huile : faites dorer le poulet sur toutes les faces. Réservez.\n3. Faites revenir l'oignon 3 min. Ajoutez les épices tajine, mélangez 1 min.\n4. Remettez le poulet, ajoutez carottes et pommes de terre. Couvrez d'eau à mi-hauteur, sel.\n5. Couvrez, mijotez 40 min à feu doux jusqu'à ce que tout soit tendre. Parsemez de coriandre.\n\n💡 CONSEIL : goûtez et ajustez les épices à mi-cuisson selon votre goût.",
+  "ingredients": [
+   {
+    "code": "H5",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "F42",
+    "qte": 0.27,
+    "fixe": 0
+   },
+   {
+    "code": "F39",
+    "qte": 0.4,
+    "fixe": 1
+   },
+   {
+    "code": "F41",
+    "qte": 0.2,
+    "fixe": 1
+   },
+   {
+    "code": "H40",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "H41",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "H53",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "A113",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Croque-monsieur a la dinde",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : 10 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 poêle ou 1 four\n• 1 couteau\n\n👨‍🍳 ÉTAPES\n\n1. Beurrez légèrement les tranches de pain.\n2. Sur une tranche : une tranche de dinde, de l'emmental, un peu de moutarde. Refermez avec une autre tranche.\n3. AU FOUR : 10 min à 200°C. OU À LA POÊLE : feu moyen, 3-4 min de chaque côté jusqu'à ce que ce soit doré et le fromage fondu.\n4. Servez chaud avec la salade.\n\n💡 CONSEIL : pour un croque plus gourmand, ajoutez un peu de fromage râpé sur le dessus avant le four.",
+  "ingredients": [
+   {
+    "code": "H2",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "A31",
+    "qte": 0.4,
+    "fixe": 0
+   },
+   {
+    "code": "H34",
+    "qte": 0.67,
+    "fixe": 0
+   },
+   {
+    "code": "F8",
+    "qte": 0.2,
+    "fixe": 1
+   },
+   {
+    "code": "A110",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "F50",
+    "qte": 0.33,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Faux-filet grille et pommes de terre sautees",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : 20 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 poêle (viande)\n• 1 poêle (pommes de terre)\n\n👨‍🍳 ÉTAPES\n\n1. Épluchez et coupez les pommes de terre en dés.\n2. Poêle avec huile + ail, feu moyen : faites sauter les pommes de terre 15-20 min en remuant, jusqu'à ce qu'elles soient dorées. Salez en fin.\n3. LA VIANDE : sortez-la 15 min avant pour qu'elle soit à température. Poêle très chaude, un peu d'huile.\n4. Saisissez le faux-filet 2-3 min de chaque côté (saignant à point). Salez, poivrez après cuisson.\n5. Laissez reposer la viande 3 min avant de servir (elle reste juteuse).\n\n💡 CONSEIL : ne salez la viande qu'après cuisson, sinon elle rend son jus et sèche.",
+  "ingredients": [
+   {
+    "code": "H12",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "F42",
+    "qte": 0.33,
+    "fixe": 0
+   },
+   {
+    "code": "F48",
+    "qte": 0.1,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Couscous poulet-merguez",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 20 min  ·  Cuisson : 40 min  ·  Difficulté : ⭐⭐ Moyen\n\n🥘 MATÉRIEL\n• 1 grande cocotte\n• 1 saladier (semoule)\n\n👨‍🍳 ÉTAPES\n\n1. Émincez l'oignon. Cocotte avec huile : dorez le poulet, réservez. Faites de même avec les merguez.\n2. Faites revenir l'oignon 3 min, ajoutez les épices, mélangez.\n3. Remettez le poulet, ajoutez les légumes couscous, couvrez d'eau, sel. Mijotez 30 min. Ajoutez les merguez 10 min avant la fin.\n4. LA SEMOULE : versez-la dans le saladier, ajoutez le même volume d'eau bouillante salée + huile. Couvrez 5 min, égrainez.\n5. Servez la semoule, la viande, les légumes et le bouillon à part.\n\n💡 CONSEIL : servez le bouillon dans un bol à côté pour que chacun mouille sa semoule à son goût.",
+  "ingredients": [
+   {
+    "code": "H5",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "H14",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "A132",
+    "qte": 0.2,
+    "fixe": 0
+   },
+   {
+    "code": "A99",
+    "qte": 0.33,
+    "fixe": 0
+   },
+   {
+    "code": "F41",
+    "qte": 0.2,
+    "fixe": 1
+   },
+   {
+    "code": "A116",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "H40",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "H53",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "A113",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Omelette aux champignons et salade",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : 10 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 poêle antiadhésive\n• 1 saladier, 1 fouet\n\n👨‍🍳 ÉTAPES\n\n1. Nettoyez et émincez les champignons. Poêle avec un peu de beurre : faites-les revenir 5 min jusqu'à évaporation de l'eau. Salez.\n2. Battez les œufs dans le saladier, salez, poivrez.\n3. Versez les œufs sur les champignons, feu moyen. Laissez prendre 2-3 min en ramenant les bords vers le centre avec une spatule.\n4. Quand le dessus est encore légèrement baveux, pliez l'omelette en deux. Parsemez d'emmental.\n5. Servez avec la salade assaisonnée.\n\n💡 CONSEIL : une omelette réussie reste moelleuse : ne la cuisez pas trop, elle finit de cuire dans l'assiette.",
+  "ingredients": [
+   {
+    "code": "F13",
+    "qte": 0.44,
+    "fixe": 0
+   },
+   {
+    "code": "F49",
+    "qte": 0.5,
+    "fixe": 1
+   },
+   {
+    "code": "F50",
+    "qte": 0.33,
+    "fixe": 1
+   },
+   {
+    "code": "F8",
+    "qte": 0.2,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Boulettes de boeuf sauce tomate et riz",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 20 min  ·  Cuisson : 30 min  ·  Difficulté : ⭐⭐ Moyen\n\n🥘 MATÉRIEL\n• 1 casserole (riz)\n• 1 poêle, 1 saladier\n\n👨‍🍳 ÉTAPES\n\n1. LES BOULETTES : dans un saladier, mélangez la viande hachée, un œuf, un peu de pain émietté, sel, poivre, ail. Formez des boulettes de la taille d'une noix.\n2. Poêle avec huile : faites-les dorer sur toutes les faces (5 min). Réservez.\n3. LA SAUCE : dans la même poêle, faites revenir l'oignon, ajoutez concentré + tomates, herbes, sel. Remettez les boulettes, mijotez 15 min.\n4. LE RIZ : cuisez-le dans l'eau bouillante salée, égouttez.\n5. Servez les boulettes et la sauce sur le riz.\n\n💡 CONSEIL : humidifiez vos mains avant de former les boulettes, ça ne colle pas.",
+  "ingredients": [
+   {
+    "code": "H23",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "A131",
+    "qte": 0.33,
+    "fixe": 0
+   },
+   {
+    "code": "A117",
+    "qte": 1,
+    "fixe": 1
+   },
+   {
+    "code": "A116",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F41",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F48",
+    "qte": 0.1,
+    "fixe": 1
+   },
+   {
+    "code": "F13",
+    "qte": 0.17,
+    "fixe": 1
+   },
+   {
+    "code": "A31",
+    "qte": 0.15,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Tranches de gigot d'agneau et haricots verts",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : 15 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 poêle\n\n👨‍🍳 ÉTAPES\n\n1. Sortez la viande 15 min avant. Écrasez l'ail.\n2. Poêle bien chaude avec un filet d'huile : saisissez les tranches de gigot 3-4 min de chaque côté selon l'épaisseur. Ajoutez l'ail et un peu de romarin en fin.\n3. Salez, poivrez après cuisson. Réservez au chaud.\n4. LES HARICOTS : réchauffez-les à la poêle avec une noix de beurre 5 min.\n5. Servez ensemble.\n\n💡 CONSEIL : l'agneau se déguste rosé : ne le cuisez pas trop pour qu'il reste tendre.",
+  "ingredients": [
+   {
+    "code": "H25",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "A89",
+    "qte": 0.67,
+    "fixe": 0
+   },
+   {
+    "code": "F48",
+    "qte": 0.1,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "H52",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Saucisses de boeuf, puree maison et carottes",
+  "type": "plat",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 25 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 casserole (purée)\n• 1 poêle, 1 presse-purée\n\n👨‍🍳 ÉTAPES\n\n1. LA PURÉE : épluchez et coupez les pommes de terre, cuisez-les 20 min dans l'eau bouillante salée. Égouttez.\n2. Écrasez avec le lait chaud et le beurre jusqu'à obtenir une purée lisse. Salez.\n3. LES SAUCISSES : faites-les cuire à la poêle 10 min à feu moyen en les retournant.\n4. LES CAROTTES : épluchez, coupez en rondelles, cuisez 15 min à l'eau ou à la poêle avec un peu de beurre.\n5. Servez ensemble.\n\n💡 CONSEIL : pour une purée bien lisse, ajoutez le lait chaud petit à petit en fouettant.",
+  "ingredients": [
+   {
+    "code": "H19",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "F42",
+    "qte": 0.4,
+    "fixe": 0
+   },
+   {
+    "code": "F12",
+    "qte": 0.3,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.25,
+    "fixe": 1
+   },
+   {
+    "code": "F39",
+    "qte": 0.3,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Salade de tomates mozzarella",
+  "type": "entree",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : aucune  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 couteau, 1 planche, 1 saladier\n\n👨‍🍳 ÉTAPES\n\n1. Lavez les tomates, coupez-les en rondelles.\n2. Coupez la mozzarella en tranches.\n3. Disposez en alternant tomate et mozzarella dans l'assiette.\n4. Arrosez d'un filet d'huile d'olive, sel, poivre, herbes.\n5. Servez frais.\n\n💡 CONSEIL : sortez la mozzarella 10 min avant, elle a plus de goût à température ambiante.",
+  "ingredients": [
+   {
+    "code": "F43",
+    "qte": 0.3,
+    "fixe": 0
+   },
+   {
+    "code": "F20",
+    "qte": 0.5,
+    "fixe": 0
+   },
+   {
+    "code": "A102",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "H46",
+    "qte": 0.03,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Avocat vinaigrette",
+  "type": "entree",
+  "instructions": "⏱️ Préparation : 5 min  ·  Cuisson : aucune  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 couteau, 1 petit bol\n\n👨‍🍳 ÉTAPES\n\n1. Coupez l'avocat en deux, retirez le noyau.\n2. Préparez une vinaigrette : huile, un peu de jus de citron, sel, poivre.\n3. Versez la vinaigrette dans le creux de l'avocat.\n4. Dégustez à la petite cuillère.\n\n💡 CONSEIL : choisissez un avocat qui cède légèrement sous le doigt : il est mûr à point.",
+  "ingredients": [
+   {
+    "code": "F28",
+    "qte": 0.5,
+    "fixe": 0
+   },
+   {
+    "code": "F44",
+    "qte": 0.1,
+    "fixe": 1
+   },
+   {
+    "code": "A102",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Salade de betteraves",
+  "type": "entree",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : aucune  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 saladier, 1 couteau\n\n👨‍🍳 ÉTAPES\n\n1. Coupez les betteraves cuites en dés.\n2. Émincez finement un peu d'oignon (facultatif).\n3. Vinaigrette : huile, filet de citron, sel, poivre.\n4. Mélangez, laissez reposer 5 min au frais avant de servir.\n\n💡 CONSEIL : ajoutez quelques dés de fromage de chèvre pour une entrée plus complète.",
+  "ingredients": [
+   {
+    "code": "F47",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "F41",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "A102",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "F44",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Concombre a la crème",
+  "type": "entree",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : aucune  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 économe, 1 saladier\n\n👨‍🍳 ÉTAPES\n\n1. Épluchez le concombre, coupez-le en fines rondelles.\n2. Mettez-les dans un saladier, salez, laissez dégorger 10 min, puis égouttez l'eau.\n3. Ajoutez la crème fraîche, un peu de citron, poivre, herbes.\n4. Mélangez et servez frais.\n\n💡 CONSEIL : faire dégorger le concombre au sel enlève l'excès d'eau : la salade n'est pas fade.",
+  "ingredients": [
+   {
+    "code": "F29",
+    "qte": 0.5,
+    "fixe": 0
+   },
+   {
+    "code": "F15",
+    "qte": 0.25,
+    "fixe": 0
+   },
+   {
+    "code": "F44",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Salade de surimi",
+  "type": "entree",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : aucune  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 saladier, 1 couteau\n\n👨‍🍳 ÉTAPES\n\n1. Coupez les bâtonnets de surimi en morceaux.\n2. Coupez un peu de concombre en dés.\n3. Mélangez avec un peu de mayonnaise ou de crème, citron, poivre.\n4. Servez frais, sur un lit de salade.\n\n💡 CONSEIL : un filet de citron réveille le goût du surimi.",
+  "ingredients": [
+   {
+    "code": "F70",
+    "qte": 0.25,
+    "fixe": 0
+   },
+   {
+    "code": "F29",
+    "qte": 0.25,
+    "fixe": 1
+   },
+   {
+    "code": "F50",
+    "qte": 0.33,
+    "fixe": 1
+   },
+   {
+    "code": "F44",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Endives au fromage",
+  "type": "entree",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : aucune  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 couteau, 1 saladier\n\n👨‍🍳 ÉTAPES\n\n1. Lavez les endives, coupez la base, séparez les feuilles.\n2. Coupez le fromage de chèvre (ou bleu) en dés.\n3. Disposez les feuilles, parsemez de fromage.\n4. Vinaigrette huile-citron par-dessus. Servez frais.\n\n💡 CONSEIL : pour adoucir l'amertume des endives, ajoutez une pincée de sucre dans la vinaigrette.",
+  "ingredients": [
+   {
+    "code": "F31",
+    "qte": 0.4,
+    "fixe": 0
+   },
+   {
+    "code": "F16",
+    "qte": 0.5,
+    "fixe": 0
+   },
+   {
+    "code": "A102",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "F44",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Oeufs durs mayonnaise",
+  "type": "entree",
+  "instructions": "⏱️ Préparation : 5 min  ·  Cuisson : 10 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 casserole\n\n👨‍🍳 ÉTAPES\n\n1. Plongez les œufs dans l'eau bouillante, cuisez 10 min.\n2. Passez-les sous l'eau froide, écalez-les (retirez la coquille).\n3. Coupez-les en deux.\n4. Nappez de mayonnaise, servez sur de la salade.\n\n💡 CONSEIL : 10 min de cuisson exactement pour un jaune bien cuit sans cerne vert.",
+  "ingredients": [
+   {
+    "code": "F13",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "F50",
+    "qte": 0.33,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Soupe de légumes maison",
+  "type": "soupe",
+  "instructions": "⏱️ Préparation : 20 min  ·  Cuisson : 30 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 grande casserole\n• 1 mixeur plongeant\n\n👨‍🍳 ÉTAPES\n\n1. Épluchez et coupez en morceaux : pommes de terre, carottes, oignon.\n2. Mettez tout dans la casserole, couvrez d'eau, salez.\n3. Portez à ébullition puis laissez cuire 30 min à feu moyen jusqu'à ce que les légumes soient tendres.\n4. Mixez le tout jusqu'à obtenir une soupe lisse.\n5. Ajoutez une noix de beurre ou un peu de crème. Poivrez. Servez chaud.\n\n💡 CONSEIL : gardez un peu d'eau de cuisson à part pour ajuster l'épaisseur au mixage.",
+  "ingredients": [
+   {
+    "code": "F42",
+    "qte": 0.3,
+    "fixe": 1
+   },
+   {
+    "code": "F39",
+    "qte": 0.3,
+    "fixe": 1
+   },
+   {
+    "code": "F41",
+    "qte": 0.2,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Velouté de courgettes",
+  "type": "soupe",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 25 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 casserole, 1 mixeur plongeant\n\n👨‍🍳 ÉTAPES\n\n1. Lavez les courgettes, coupez-les en morceaux (avec la peau). Émincez l'oignon.\n2. Faites revenir l'oignon 3 min dans la casserole avec un peu de beurre.\n3. Ajoutez les courgettes, couvrez d'eau, salez. Cuisez 20 min.\n4. Mixez. Ajoutez une cuillère de crème, poivrez.\n5. Servez chaud, éventuellement avec un peu d'emmental râpé.\n\n💡 CONSEIL : une pomme de terre ajoutée rend le velouté plus onctueux.",
+  "ingredients": [
+   {
+    "code": "F30",
+    "qte": 0.5,
+    "fixe": 1
+   },
+   {
+    "code": "F41",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F15",
+    "qte": 0.2,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Soupe à l'oignon gratinée",
+  "type": "soupe",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 40 min  ·  Difficulté : ⭐⭐ Moyen\n\n🥘 MATÉRIEL\n• 1 casserole\n• bols allant au four\n\n👨‍🍳 ÉTAPES\n\n1. Émincez finement les oignons.\n2. Faites-les revenir doucement dans le beurre 15 min jusqu'à ce qu'ils soient dorés (pas brûlés).\n3. Saupoudrez d'un peu de farine, mélangez. Versez de l'eau chaude, sel, poivre. Mijotez 20 min.\n4. Versez dans des bols, posez une tranche de pain, couvrez d'emmental râpé.\n5. Passez sous le grill du four 5 min jusqu'à ce que le fromage soit doré.\n\n💡 CONSEIL : la patience sur les oignons fait tout : dorés lentement, ils deviennent sucrés.",
+  "ingredients": [
+   {
+    "code": "F41",
+    "qte": 0.4,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.1,
+    "fixe": 1
+   },
+   {
+    "code": "A78",
+    "qte": 0.03,
+    "fixe": 1
+   },
+   {
+    "code": "A31",
+    "qte": 0.25,
+    "fixe": 1
+   },
+   {
+    "code": "F8",
+    "qte": 0.3,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Potage poireaux pommes de terre",
+  "type": "soupe",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 30 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 casserole, 1 mixeur\n\n👨‍🍳 ÉTAPES\n\n1. Épluchez et coupez les pommes de terre en morceaux, émincez l'oignon.\n2. Faites revenir l'oignon 3 min avec un peu de beurre.\n3. Ajoutez les pommes de terre, couvrez d'eau, salez. Cuisez 25 min.\n4. Mixez jusqu'à obtenir un potage lisse. Ajoutez du lait ou de la crème pour la douceur.\n5. Poivrez et servez chaud.\n\n💡 CONSEIL : ce potage se congèle très bien : faites-en une grande quantité.",
+  "ingredients": [
+   {
+    "code": "F42",
+    "qte": 0.35,
+    "fixe": 1
+   },
+   {
+    "code": "F41",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F12",
+    "qte": 0.2,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Citronnade maison",
+  "type": "boisson",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : aucune  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 presse-agrumes, 1 grande carafe\n\n👨‍🍳 ÉTAPES\n\n1. Pressez le jus de plusieurs citrons.\n2. Versez le jus dans la carafe, ajoutez de l'eau fraîche (environ 1L pour 3-4 citrons).\n3. Sucrez à votre goût, mélangez bien.\n4. Ajoutez des glaçons et quelques feuilles de menthe si vous en avez.\n5. Servez bien frais.\n\n💡 CONSEIL : goûtez et ajustez sucre/citron : l'équilibre parfait dépend de votre goût.",
+  "ingredients": [
+   {
+    "code": "F44",
+    "qte": 0.5,
+    "fixe": 0
+   },
+   {
+    "code": "A19",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Cocktail orange-ananas sans alcool",
+  "type": "boisson",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : aucune  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 presse-agrumes ou 1 verre doseur, 1 carafe\n\n👨‍🍳 ÉTAPES\n\n1. Versez le jus d'orange dans la carafe.\n2. Ajoutez du jus d'ananas (ou des morceaux mixés).\n3. Mélangez, ajoutez des glaçons.\n4. Servez bien frais dans de grands verres.\n\n💡 CONSEIL : servez avec une paille et une rondelle d'orange sur le bord du verre pour l'effet cocktail.",
+  "ingredients": [
+   {
+    "code": "B20",
+    "qte": 0.33,
+    "fixe": 0
+   },
+   {
+    "code": "B18",
+    "qte": 0.33,
+    "fixe": 0
+   }
+  ]
+ },
+ {
+  "nom": "Sirop à l'eau fraîche (fraise/menthe/grenadine)",
+  "type": "boisson",
+  "instructions": "⏱️ Préparation : 3 min  ·  Cuisson : aucune  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 grand verre ou carafe\n\n👨‍🍳 ÉTAPES\n\n1. Versez un fond de sirop dans le verre (fraise, menthe ou grenadine, au choix).\n2. Complétez avec de l'eau fraîche (environ 1 volume de sirop pour 7 d'eau).\n3. Mélangez, ajoutez des glaçons.\n4. Servez bien frais.\n\n💡 CONSEIL : avec de l'eau gazeuse à la place de l'eau plate, ça devient une boisson pétillante rafraîchissante.",
+  "ingredients": [
+   {
+    "code": "B22",
+    "qte": 0.14,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Smoothie banane-orange",
+  "type": "boisson",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : aucune  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 mixeur (blender)\n\n👨‍🍳 ÉTAPES\n\n1. Épluchez les bananes, coupez-les en morceaux.\n2. Mettez-les dans le mixeur avec le jus d'orange.\n3. Ajoutez un yaourt nature pour l'onctuosité (facultatif).\n4. Mixez jusqu'à obtenir un mélange lisse.\n5. Servez aussitôt, bien frais.\n\n💡 CONSEIL : une banane bien mûre rend le smoothie naturellement sucré, pas besoin d'ajouter du sucre.",
+  "ingredients": [
+   {
+    "code": "F33",
+    "qte": 0.5,
+    "fixe": 1
+   },
+   {
+    "code": "B20",
+    "qte": 0.33,
+    "fixe": 1
+   },
+   {
+    "code": "F11",
+    "qte": 0.5,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Thé glacé maison",
+  "type": "boisson",
+  "instructions": "⏱️ Préparation : 5 min  ·  Cuisson : 10 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 casserole ou bouilloire, 1 carafe\n\n👨‍🍳 ÉTAPES\n\n1. Faites infuser du thé dans de l'eau chaude 5 min, puis retirez.\n2. Sucrez légèrement tant que c'est chaud, mélangez.\n3. Laissez refroidir, puis mettez au frais 1h.\n4. Ajoutez un filet de citron et des glaçons avant de servir.\n\n💡 CONSEIL : n'infusez pas le thé trop longtemps, il deviendrait amer.",
+  "ingredients": [
+   {
+    "code": "B12",
+    "qte": 1.0,
+    "fixe": 0
+   },
+   {
+    "code": "F44",
+    "qte": 0.1,
+    "fixe": 1
+   },
+   {
+    "code": "A19",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Gateau au yaourt aux pommes",
+  "type": "gateau",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 35 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 moule à gâteau\n• 1 saladier (le pot de yaourt sert de mesure)\n\n👨‍🍳 ÉTAPES\n\n1. PRÉCHAUFFEZ le four à 180°C. Videz le yaourt dans le saladier, gardez le pot vide comme mesure.\n2. Ajoutez 2 pots de sucre, 3 pots de farine, 1/2 pot d'huile, 3 œufs, la levure. Mélangez bien.\n3. Épluchez les pommes, coupez-les en dés, incorporez-les à la pâte.\n4. Versez dans le moule beurré. Enfournez 35 min.\n5. VÉRIFIEZ : plantez la pointe d'un couteau, elle doit ressortir sèche. Laissez tiédir avant de démouler.\n\n💡 CONSEIL : le pot de yaourt vide est votre unité de mesure : simple et sans balance.",
+  "ingredients": [
+   {
+    "code": "F11",
+    "qte": 1.0,
+    "fixe": 1
+   },
+   {
+    "code": "A19",
+    "qte": 0.2,
+    "fixe": 1
+   },
+   {
+    "code": "A79",
+    "qte": 0.3,
+    "fixe": 1
+   },
+   {
+    "code": "F13",
+    "qte": 0.5,
+    "fixe": 1
+   },
+   {
+    "code": "A67",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F45",
+    "qte": 0.35,
+    "fixe": 1
+   },
+   {
+    "code": "A102",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Quatre-quarts au chocolat",
+  "type": "gateau",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 40 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 moule à cake\n• 1 saladier, 1 fouet\n\n👨‍🍳 ÉTAPES\n\n1. PRÉCHAUFFEZ le four à 180°C. Faites fondre le beurre doucement.\n2. Battez les œufs avec le sucre jusqu'à ce que le mélange blanchisse.\n3. Ajoutez le beurre fondu, la farine, la levure et le cacao. Mélangez sans grumeaux.\n4. Versez dans le moule beurré. Enfournez 40 min.\n5. Vérifiez avec la pointe d'un couteau (sèche = cuit). Démoulez tiède.\n\n💡 CONSEIL : beurre et œufs à température ambiante donnent une pâte plus homogène.",
+  "ingredients": [
+   {
+    "code": "F13",
+    "qte": 0.67,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 1.0,
+    "fixe": 1
+   },
+   {
+    "code": "A19",
+    "qte": 0.2,
+    "fixe": 1
+   },
+   {
+    "code": "A79",
+    "qte": 0.25,
+    "fixe": 1
+   },
+   {
+    "code": "A68",
+    "qte": 0.2,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Gateau marbre",
+  "type": "gateau",
+  "instructions": "⏱️ Préparation : 20 min  ·  Cuisson : 40 min  ·  Difficulté : ⭐⭐ Moyen\n\n🥘 MATÉRIEL\n• 1 moule à cake\n• 2 saladiers\n\n👨‍🍳 ÉTAPES\n\n1. PRÉCHAUFFEZ à 180°C. Battez beurre mou + sucre, ajoutez les œufs un à un.\n2. Ajoutez farine + levure + un peu de lait. Mélangez.\n3. Séparez la pâte en deux. Dans une moitié, ajoutez le cacao.\n4. Dans le moule, versez en alternant une louche de pâte claire, une de pâte chocolat.\n5. Passez la pointe d'un couteau en spirale pour marbrer. Enfournez 40 min.\n\n💡 CONSEIL : ne mélangez pas trop en marbrant, sinon les deux couleurs se fondent.",
+  "ingredients": [
+   {
+    "code": "F1",
+    "qte": 0.6,
+    "fixe": 1
+   },
+   {
+    "code": "A19",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F13",
+    "qte": 0.5,
+    "fixe": 1
+   },
+   {
+    "code": "A79",
+    "qte": 0.2,
+    "fixe": 1
+   },
+   {
+    "code": "A67",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F12",
+    "qte": 0.1,
+    "fixe": 1
+   },
+   {
+    "code": "A68",
+    "qte": 0.2,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Gateau aux bananes",
+  "type": "gateau",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 40 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 moule à cake\n• 1 fourchette, 1 saladier\n\n👨‍🍳 ÉTAPES\n\n1. PRÉCHAUFFEZ à 180°C. Écrasez les bananes à la fourchette.\n2. Ajoutez le beurre fondu, le sucre, les œufs. Mélangez.\n3. Ajoutez la farine et la levure. Mélangez sans trop travailler.\n4. Versez dans le moule. Enfournez 40 min.\n5. Vérifiez la cuisson au couteau. Démoulez tiède.\n\n💡 CONSEIL : plus les bananes sont mûres (peau tachetée), plus le gâteau est parfumé.",
+  "ingredients": [
+   {
+    "code": "F33",
+    "qte": 0.5,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.4,
+    "fixe": 1
+   },
+   {
+    "code": "A19",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F13",
+    "qte": 0.33,
+    "fixe": 1
+   },
+   {
+    "code": "A79",
+    "qte": 0.25,
+    "fixe": 1
+   },
+   {
+    "code": "A69",
+    "qte": 0.4,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Fondant au chocolat",
+  "type": "gateau",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 22 min  ·  Difficulté : ⭐⭐ Moyen\n\n🥘 MATÉRIEL\n• 1 moule\n• 1 saladier, 1 casserole (bain-marie)\n\n👨‍🍳 ÉTAPES\n\n1. PRÉCHAUFFEZ à 180°C. Faites fondre le chocolat avec le beurre (au bain-marie ou micro-ondes doux).\n2. Battez les œufs avec le sucre.\n3. Ajoutez le chocolat fondu, puis la farine. Mélangez.\n4. Versez dans le moule. Enfournez SEULEMENT 20-22 min (le centre doit rester fondant).\n5. Laissez tiédir avant de démouler délicatement.\n\n💡 CONSEIL : le secret du fondant : ne PAS trop cuire. Le centre légèrement tremblotant à la sortie = parfait.",
+  "ingredients": [
+   {
+    "code": "A34",
+    "qte": 2.0,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.6,
+    "fixe": 1
+   },
+   {
+    "code": "A19",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F13",
+    "qte": 0.67,
+    "fixe": 1
+   },
+   {
+    "code": "A79",
+    "qte": 0.12,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Tarte aux pommes",
+  "type": "gateau",
+  "instructions": "⏱️ Préparation : 20 min  ·  Cuisson : 35 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 moule à tarte, 1 économe\n\n👨‍🍳 ÉTAPES\n\n1. PRÉCHAUFFEZ à 190°C. Déroulez la pâte dans le moule, piquez le fond à la fourchette.\n2. Épluchez les pommes, coupez-les en fines lamelles.\n3. Disposez les lamelles en rosace sur la pâte.\n4. Saupoudrez de sucre, ajoutez quelques noisettes de beurre.\n5. Enfournez 35 min jusqu'à ce que les bords soient dorés.\n\n💡 CONSEIL : un peu de confiture d'abricot chaude étalée à la sortie du four = tarte brillante comme chez le pâtissier.",
+  "ingredients": [
+   {
+    "code": "H32",
+    "qte": 1.0,
+    "fixe": 1
+   },
+   {
+    "code": "F45",
+    "qte": 0.6,
+    "fixe": 1
+   },
+   {
+    "code": "A19",
+    "qte": 0.1,
+    "fixe": 1
+   },
+   {
+    "code": "A67",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Gateau au chocolat et aux amandes",
+  "type": "gateau",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : 30 min  ·  Difficulté : ⭐⭐ Moyen\n\n🥘 MATÉRIEL\n• 1 moule, 1 saladier\n\n👨‍🍳 ÉTAPES\n\n1. PRÉCHAUFFEZ à 180°C. Faites fondre chocolat + beurre.\n2. Battez les œufs avec le sucre.\n3. Ajoutez le chocolat fondu, la poudre d'amandes et un peu de farine. Mélangez.\n4. Versez dans le moule. Enfournez 30 min.\n5. Laissez refroidir avant de démouler.\n\n💡 CONSEIL : la poudre d'amandes rend le gâteau moelleux et lui donne un bon goût.",
+  "ingredients": [
+   {
+    "code": "A34",
+    "qte": 2.0,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.5,
+    "fixe": 1
+   },
+   {
+    "code": "A19",
+    "qte": 0.12,
+    "fixe": 1
+   },
+   {
+    "code": "F13",
+    "qte": 0.67,
+    "fixe": 1
+   },
+   {
+    "code": "A69",
+    "qte": 0.64,
+    "fixe": 1
+   },
+   {
+    "code": "A79",
+    "qte": 0.05,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Mousse au chocolat",
+  "type": "dessert",
+  "instructions": "⏱️ Préparation : 20 min  ·  Cuisson : aucune (2h au frais)  ·  Difficulté : ⭐⭐ Moyen\n\n🥘 MATÉRIEL\n• 2 saladiers, 1 fouet (ou batteur)\n\n👨‍🍳 ÉTAPES\n\n1. Faites fondre le chocolat doucement, laissez tiédir.\n2. Séparez les blancs des jaunes d'œufs.\n3. Mélangez les jaunes au chocolat fondu.\n4. Montez les blancs en neige bien ferme.\n5. Incorporez délicatement les blancs au chocolat, en soulevant la masse (ne cassez pas les blancs).\n6. Versez dans des verrines, réfrigérez au moins 2h.\n\n💡 CONSEIL : pour une mousse aérienne, incorporez les blancs en 3 fois, en douceur.",
+  "ingredients": [
+   {
+    "code": "A34",
+    "qte": 2.0,
+    "fixe": 1
+   },
+   {
+    "code": "F13",
+    "qte": 1.0,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Crepes",
+  "type": "dessert",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : 20 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 saladier, 1 fouet, 1 poêle\n\n👨‍🍳 ÉTAPES\n\n1. Dans le saladier, mettez la farine, faites un puits, cassez les œufs.\n2. Mélangez en ajoutant le lait petit à petit pour éviter les grumeaux.\n3. Ajoutez le beurre fondu et une pincée de sucre. Laissez reposer 30 min si possible.\n4. Poêle chaude légèrement beurrée : versez une louche, tournez la poêle pour étaler.\n5. Cuisez 1 min, retournez, 30 s. Répétez.\n\n💡 CONSEIL : la première crêpe rate souvent, c'est normal : elle règle la température de la poêle.",
+  "ingredients": [
+   {
+    "code": "A78",
+    "qte": 0.3,
+    "fixe": 1
+   },
+   {
+    "code": "F13",
+    "qte": 0.5,
+    "fixe": 1
+   },
+   {
+    "code": "F12",
+    "qte": 0.6,
+    "fixe": 1
+   },
+   {
+    "code": "A19",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "A67",
+    "qte": 0.15,
+    "fixe": 1
+   },
+   {
+    "code": "F1",
+    "qte": 0.12,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Compote de pommes",
+  "type": "dessert",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : 20 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 casserole, 1 économe\n\n👨‍🍳 ÉTAPES\n\n1. Épluchez les pommes, retirez le cœur, coupez-les en morceaux.\n2. Mettez-les dans la casserole avec un fond d'eau et un peu de sucre.\n3. Cuisez à feu doux 20 min à couvert, en remuant.\n4. Écrasez à la fourchette (ou mixez pour une compote lisse).\n5. Servez tiède ou froid.\n\n💡 CONSEIL : une pincée de cannelle transforme une simple compote en dessert réconfortant.",
+  "ingredients": [
+   {
+    "code": "F45",
+    "qte": 0.6,
+    "fixe": 1
+   },
+   {
+    "code": "A19",
+    "qte": 0.05,
+    "fixe": 1
+   },
+   {
+    "code": "A67",
+    "qte": 0.15,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Riz au lait",
+  "type": "dessert",
+  "instructions": "⏱️ Préparation : 5 min  ·  Cuisson : 30 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 casserole à fond épais\n\n👨‍🍳 ÉTAPES\n\n1. Versez le lait dans la casserole, ajoutez le sucre. Portez à frémissement.\n2. Ajoutez le riz. Baissez le feu au minimum.\n3. Laissez cuire 30 min en remuant souvent pour que ça n'attache pas.\n4. Le riz doit être fondant et le lait crémeux. Servez tiède ou froid.\n\n💡 CONSEIL : remuez régulièrement, surtout à la fin : le riz au lait attache vite au fond.",
+  "ingredients": [
+   {
+    "code": "A131",
+    "qte": 0.3,
+    "fixe": 1
+   },
+   {
+    "code": "F12",
+    "qte": 0.75,
+    "fixe": 1
+   },
+   {
+    "code": "A19",
+    "qte": 0.08,
+    "fixe": 1
+   },
+   {
+    "code": "A67",
+    "qte": 0.15,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Semoule au lait vanillee",
+  "type": "dessert",
+  "instructions": "⏱️ Préparation : 5 min  ·  Cuisson : 15 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 casserole\n\n👨‍🍳 ÉTAPES\n\n1. Portez le lait à frémissement avec le sucre.\n2. Versez la semoule en pluie, en remuant.\n3. Cuisez 5-8 min à feu doux sans cesser de remuer, jusqu'à épaississement.\n4. Versez dans des ramequins, laissez refroidir (ça épaissit encore).\n\n💡 CONSEIL : versez la semoule en pluie fine tout en fouettant pour éviter les grumeaux.",
+  "ingredients": [
+   {
+    "code": "H60",
+    "qte": 0.18,
+    "fixe": 1
+   },
+   {
+    "code": "F12",
+    "qte": 0.75,
+    "fixe": 1
+   },
+   {
+    "code": "A19",
+    "qte": 0.07,
+    "fixe": 1
+   },
+   {
+    "code": "A67",
+    "qte": 0.15,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Salade d'oranges",
+  "type": "dessert",
+  "instructions": "⏱️ Préparation : 10 min  ·  Cuisson : aucune  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 couteau, 1 saladier\n\n👨‍🍳 ÉTAPES\n\n1. Épluchez les oranges à vif (retirez la peau et la partie blanche).\n2. Coupez-les en rondelles.\n3. Disposez dans un plat, saupoudrez d'un peu de sucre.\n4. Réservez au frais 30 min avant de servir.\n\n💡 CONSEIL : une pincée de cannelle ou quelques feuilles de menthe subliment ce dessert léger.",
+  "ingredients": [
+   {
+    "code": "F35",
+    "qte": 0.5,
+    "fixe": 1
+   },
+   {
+    "code": "A19",
+    "qte": 0.04,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Salade de fruits frais",
+  "type": "dessert",
+  "instructions": "⏱️ Préparation : 15 min  ·  Cuisson : aucune  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 couteau, 1 saladier\n\n👨‍🍳 ÉTAPES\n\n1. Épluchez et coupez en morceaux les fruits de saison : pommes, bananes, oranges, kiwis...\n2. Mettez tout dans le saladier.\n3. Arrosez d'un peu de jus d'orange (empêche les pommes de noircir) et d'un peu de sucre.\n4. Mélangez délicatement, réservez au frais.\n\n💡 CONSEIL : le jus de citron ou d'orange évite que les fruits coupés ne brunissent.",
+  "ingredients": [
+   {
+    "code": "F45",
+    "qte": 0.25,
+    "fixe": 1
+   },
+   {
+    "code": "F33",
+    "qte": 0.33,
+    "fixe": 1
+   },
+   {
+    "code": "F34",
+    "qte": 1.0,
+    "fixe": 1
+   },
+   {
+    "code": "B20",
+    "qte": 0.1,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Yaourt au coulis de fruits",
+  "type": "dessert",
+  "instructions": "⏱️ Préparation : 5 min  ·  Cuisson : aucune  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 bol, 1 fourchette\n\n👨‍🍳 ÉTAPES\n\n1. Écrasez quelques fruits frais (banane, ou fruits au sirop) à la fourchette avec un peu de sucre.\n2. Versez le yaourt nature dans un bol.\n3. Nappez du coulis de fruits.\n4. Servez frais.\n\n💡 CONSEIL : un dessert express et léger, parfait après un repas copieux.",
+  "ingredients": [
+   {
+    "code": "F11",
+    "qte": 1.0,
+    "fixe": 1
+   },
+   {
+    "code": "F33",
+    "qte": 0.25,
+    "fixe": 1
+   }
+  ]
+ },
+ {
+  "nom": "Banane au chocolat",
+  "type": "dessert",
+  "instructions": "⏱️ Préparation : 5 min  ·  Cuisson : 5 min  ·  Difficulté : ⭐ Facile\n\n🥘 MATÉRIEL\n• 1 casserole (bain-marie) ou micro-ondes\n\n👨‍🍳 ÉTAPES\n\n1. Faites fondre le chocolat doucement.\n2. Épluchez les bananes, coupez-les en rondelles dans un bol.\n3. Nappez de chocolat fondu.\n4. Dégustez tiède, quand le chocolat commence à figer.\n\n💡 CONSEIL : un dessert minute qui plaît toujours, avec seulement 2 ingrédients.",
+  "ingredients": [
+   {
+    "code": "F33",
+    "qte": 0.5,
+    "fixe": 1
+   },
+   {
+    "code": "A34",
+    "qte": 1.0,
+    "fixe": 1
+   }
+  ]
+ }
+]

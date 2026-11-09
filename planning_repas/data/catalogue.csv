@@ -1,0 +1,507 @@
+code;designation;prix;qte_max;actif;categorie
+A1;Nescafé boite 200g;11.26;12;1;Alimentaire
+A2;Chicorée 200g;2.83;12;1;Alimentaire
+A3;Ricoré 100g;2.16;12;1;Alimentaire
+A4;Café moulu 250g grand-mère;3.22;12;1;Alimentaire
+A5;Senseo classique *40;5.52;10;1;Alimentaire
+A6;Senseo corsé *40;6.03;10;1;Alimentaire
+A7;Chocolat en poudre 450g Poulain;3.31;10;1;Alimentaire
+A8;Thé ceylan 25 sachets;0.55;10;1;Alimentaire
+A9;Thé vert menthe 25 sachets;1.29;10;1;Alimentaire
+A10;Infusion verveine menthe;1.17;10;1;Alimentaire
+A11;Infusion fruits rouges;1.11;10;1;Alimentaire
+A12;Lait concentré sucré 300g;2.60;10;1;Alimentaire
+A13;Lait écrémé en poudre 300g;3.20;10;1;Alimentaire
+A14;Confiture d'abricot 450g;1.73;10;1;Alimentaire
+A15;Confiture de fraise 35% 450g;1.73;10;1;Alimentaire
+A16;Miel fleurs squeezer 500g;2.68;10;1;Alimentaire
+A17;Nutella 400g;4.02;10;1;Alimentaire
+A18;Sucre en morceaux n°4 1Kg;1.29;5;1;Alimentaire
+A19;Sucre en poudre 1Kg;1.85;5;1;Alimentaire
+A20;Edulcorant canderel *300;7.36;10;1;Alimentaire
+A21;Miel pops 330g;3.47;10;1;Alimentaire
+A22;Extra fruits rouges 450g Kellogs;4.64;10;1;Alimentaire
+A23;Corn flakes 750g;3.47;10;1;Alimentaire
+A24;Chocapic 375g;3.45;10;1;Alimentaire
+A25;Quaker 550g;4.38;10;1;Alimentaire
+A26;Biscotte nature 300g;1.15;10;1;Alimentaire
+A27;Pain grillé farine froment 300g;2.89;10;1;Alimentaire
+A28;Wasa bleu 230g;1.77;10;1;Alimentaire
+A29;REM 3 paquets de 255g;3.41;6;1;Alimentaire
+A30;Brioche tranchée 18 tranches 500g;3.28;10;1;Alimentaire
+A31;Pain de mie nature 500g;1.52;10;1;Alimentaire
+A32;Chocolat lait 30% 100g;1.23;10;1;Alimentaire
+A33;Chocolat lait céréales 100g;1.21;10;1;Alimentaire
+A34;Chocolat noir 100g;1.06;10;1;Alimentaire
+A35;Chocolat noisette 100g;1.40;10;1;Alimentaire
+A36;BN chocolat paquet 16 biscuits;1.10;10;1;Alimentaire
+A37;Goûter fourré rond chocolat 300g;0.87;10;1;Alimentaire
+A38;Petit beurre LU 200g;1.77;10;1;Alimentaire
+A39;Prince Granola 200g;3.44;10;1;Alimentaire
+A40;Cake aux fruits 250g;1.44;10;1;Alimentaire
+A41;Cookie nougatine aux pépites de chocolat;1.15;10;1;Alimentaire
+A42;Galette bretonne 120g;0.83;10;1;Alimentaire
+A43;Gateau marbré chocolat;1.47;10;1;Alimentaire
+A44;Madelaines longues 250g;1.07;16;1;Alimentaire
+A45;Biscuit tablette chocolat sportchoc 125g;0.94;10;1;Alimentaire
+A46;Barre patisserie 800g;1.99;10;1;Alimentaire
+A47;Pain d'épices sucré 500g;1.70;10;1;Alimentaire
+A48;Pain au chocolat par 8;1.84;10;1;Alimentaire
+A49;Pain au lait par 10;1.70;10;1;Alimentaire
+A50;Palet breton 125g;1.23;10;1;Alimentaire
+A51;Pain hamburger *4;1.14;10;1;Alimentaire
+A52;Bombon acidulé;0.84;10;1;Alimentaire
+A53;Bombon fraise fondant halal 200g;1.72;10;1;Alimentaire
+A54;Menthe dur 150g;0.84;10;1;Alimentaire
+A55;Tirlibibi Haribo 750g;7.08;10;1;Alimentaire
+A56;Tagada fraise 220g;1.78;10;1;Alimentaire
+A57;Peanut 5*36g;2.87;10;1;Alimentaire
+A58;Nuts noisette 42g;0.72;10;1;Alimentaire
+A59;Snickers sachet de 5*50g;3.25;10;1;Alimentaire
+A60;Mars sachet de 5*45g;3.25;10;1;Alimentaire
+A61;Twix sachet de 5*50g;3.32;10;1;Alimentaire
+A62;Bounty sachet de 5*57g;4.19;10;1;Alimentaire
+A63;Kit Kat sachet de 6*41,5g;4.59;10;1;Alimentaire
+A64;Lion sachet de 6*42g;3.49;10;1;Alimentaire
+A65;Crème dessert chocolat 570g;2.35;10;1;Alimentaire
+A66;Crème dessert vanille 570g;2.35;10;1;Alimentaire
+A67;Sucre vanillé 10*7,5g;0.84;10;1;Alimentaire
+A68;Cacao non sucré Van Houten;3.62;5;1;Alimentaire
+A69;Poudre d'amande 125g;2.26;10;1;Alimentaire
+A70;Mr freeze 20*45ml;3.46;10;1;Alimentaire
+A71;Cocktail de fruits 425g;2.34;10;1;Alimentaire
+A72;Ananas tranchée entière 565g;1.65;10;1;Alimentaire
+A73;Oreillon d'abricot au sirop 820g;2.58;10;1;Alimentaire
+A74;Datte ravier 500g;1.34;10;1;Alimentaire
+A75;Compote de pomme allégées en sucre 850g;2.10;10;1;Alimentaire
+A76;Cacahuète grillée salée 200g;1.44;10;1;Alimentaire
+A77;Chips nature 90g;0.82;10;1;Alimentaire
+A78;Farine de blé type 55 1Kg;0.70;10;1;Alimentaire
+A79;Farine à gateau avec poudre levante 1Kg;1.84;10;1;Alimentaire
+A80;Filet de maquereau 125g;0.89;15;1;Alimentaire
+A81;Sardine à l'huile 125g;0.71;15;1;Alimentaire
+A82;Thon à l'huile 80g;0.69;15;1;Alimentaire
+A83;Miette de thon à la tomate 80g;0.65;15;1;Alimentaire
+A84;Thon naturel 185g;1.22;15;1;Alimentaire
+A85;Paté de campagne boite 3*78g;2.51;10;1;Alimentaire
+A86;Paté de foie boite 3*78g;2.47;10;1;Alimentaire
+A87;Rillettes 125g;1.19;10;1;Alimentaire
+A88;Champignon de paris pied morceaux 390g;1.11;10;1;Alimentaire
+A89;Haricots verts extra fins 800g;2.16;10;1;Alimentaire
+A90;Petits poids très fin 400g;1.05;10;1;Alimentaire
+A91;Cassoulet 840g;2.69;10;1;Alimentaire
+A92;Ravioli boeuf 800g;2.65;10;1;Alimentaire
+A93;Haricots blancs sauce tomate;1.52;10;1;Alimentaire
+A94;Lentilles cuisinés à l'auvergnate 820g;2.19;10;1;Alimentaire
+A95;Petits pos très fins 800g;2.04;10;1;Alimentaire
+A96;Petits pois carottes très fins 400g;1.47;10;1;Alimentaire
+A97;Mais 285g;1.11;10;1;Alimentaire
+A98;Macédoine de légumes 400g;1.46;10;1;Alimentaire
+A99;Légumes pour couscous 800g;2.58;10;1;Alimentaire
+A100;Couscous royal poulet et boeuf 980g;6.67;10;1;Alimentaire
+A101;Choucroute garnie 800g;3.37;10;1;Alimentaire
+A102;Huile de tournesol 1L;1.75;1;1;Alimentaire
+A103;Huile d'olive 20% tournesol 80% 1L;4.04;1;1;Alimentaire
+A104;Vinaigre alcool coloré;0.62;2;1;Alimentaire
+A105;Vinaigrette balsamique 50cl;3.48;2;1;Alimentaire
+A106;Vinaigrette nature alégée 50cl;1.84;2;1;Alimentaire
+A107;Harissa tube 70g;0.49;12;1;Alimentaire
+A108;Tomato ketchup 560g;1.18;10;1;Alimentaire
+A109;Mayonnaise 175g;1.00;10;1;Alimentaire
+A110;Moutarde 265g;1.69;2;1;Alimentaire
+A111;Sel fin 750g;0.49;2;1;Alimentaire
+A112;Poivre noir 38g;2.51;2;1;Alimentaire
+A113;Kub or 128g;1.61;10;1;Alimentaire
+A114;Cornichon extra fin 330g;1.13;2;1;Alimentaire
+A115;Olive verte dénoyautées 180g;0.80;10;1;Alimentaire
+A116;Double concentré de tomates 150g;1.10;10;1;Alimentaire
+A117;Sauce tomate fraiche 2*190g;1.15;10;1;Alimentaire
+A118;Tomate entière pelées 400g;0.73;10;1;Alimentaire
+A119;Sauce bolognaise 100% boeuf 420g;1.66;12;1;Alimentaire
+A120;Nouilles instantanées boeuf halal 3*60g;1.29;12;1;Alimentaire
+A121;Nouilles instantanées crevettes halal 3*60g;1.42;12;1;Alimentaire
+A122;Nouilles instantanées Curry halal 3*60g;1.29;12;1;Alimentaire
+A123;Macaroni 500g;1.21;12;1;Alimentaire
+A124;Coquillettes 500;1.21;12;1;Alimentaire
+A125;Penne 500g;1.22;12;1;Alimentaire
+A126;Spaghetti 500g;1.26;12;1;Alimentaire
+A127;Tagliatelle 500g;1.98;8;1;Alimentaire
+A128;Torti 500g;1.22;12;1;Alimentaire
+A129;Purée en flocon 500g;2.00;10;1;Alimentaire
+A130;Riz long étuvé 500g;1.29;10;1;Alimentaire
+A131;Riz thai parfumé 500g;2.45;12;1;Alimentaire
+A132;Couscous moyen 500g;1.35;10;1;Alimentaire
+A133;Potage poireau pomme de terre 54g;1.94;10;1;Alimentaire
+A134;Vinaigre Balsamique;4.41;10;1;Alimentaire
+A135;Huile d'olive 1L;6.32;10;1;Alimentaire
+A136;Spéculos 250g;0.99;2;1;Alimentaire
+H1;4 tranches de dinde fumées;2.36;10;1;Hallal
+H2;4 tranches de dinde nature;2.36;10;1;Hallal
+H3;Cotes d'agneau *3 environ 240g;5.76;10;1;Hallal
+H4;Cordon bleu;6.25;10;1;Hallal
+H5;Cuisse de poulet;2.89;10;1;Hallal
+H6;Boeuf bourgugnon;6.25;10;1;Hallal
+H7;Collier d'agneau env 1Kg;14.64;10;1;Hallal
+H8;Emincé de kebab environ 500g;6.25;10;1;Hallal
+H9;Entrecôte l'unité environ 200g;5.24;10;1;Hallal
+H10;Escalope de poulet environ 160g;3.67;10;1;Hallal
+H11;Escalope de veau environ 150g;5.24;10;1;Hallal
+H12;Faux filet environ 150g;4.19;10;1;Hallal
+H13;Lardons fumé volaille environ 200g;3.67;10;1;Hallal
+H14;Merguez douce *2 environ 100g;3.13;10;1;Hallal
+H15;Merguez forte *2 environ 100g;3.13;10;1;Hallal
+H16;Poulet cru Halal;9.18;10;1;Hallal
+H17;Saucisses blanches *2 environ 200g;3.13;10;1;Hallal
+H18;Saucisson boeuf olive;3.13;10;1;Hallal
+H19;Saucisse boeuf;3.13;10;1;Hallal
+H20;Saucisse veau;3.10;10;1;Hallal
+H21;Saucisson de volaille;2.89;10;1;Hallal
+H22;Saucisses knack *5;7.34;10;1;Hallal
+H23;Steack haché environ 120g;1.36;10;1;Hallal
+H24;Saucisse sujuk environ 1Kg;16.75;10;1;Hallal
+H25;Tranche gigot d'agneau environ 250g;4.72;10;1;Hallal
+H26;Viande couscous env 1Kk;13.59;10;1;Hallal
+H27;Coriandre fraîche;1.27;10;1;Hallal
+H28;Feta environ 200g;3.13;10;1;Hallal
+H29;Lait fermenté;2.09;10;1;Hallal
+H30;Menthe fraîche;1.27;10;1;Hallal
+H31;Pâte brisée;0.69;10;1;Hallal
+H32;Pâte feuilletée;0.83;10;1;Hallal
+H33;Feuille de brick;0.99;10;1;Hallal
+H34;Toastinette croque Mr 10 tranches;1.84;10;1;Hallal
+H35;Amandes nature environ 300g;4.19;10;1;Hallal
+H36;Arôme maggi halal;3.13;10;1;Hallal
+H37;Bombon hallal environ 70g;1.56;10;1;Hallal
+H38;Bouillon de boeuf *10;4.19;10;1;Hallal
+H39;Boulgour environ 1Kg;3.13;10;1;Hallal
+H40;Cumin environ 70g;2.09;10;1;Hallal
+H41;Curry environ 75g;2.09;10;1;Hallal
+H42;Dakatine 4/4;5.24;10;1;Hallal
+H44;Graine de tournesol environ 250g;2.63;10;1;Hallal
+H45;Soupe harira;2.05;10;1;Hallal
+H46;Herbe de provence tagine environ 50g;1.84;10;1;Hallal
+H47;Langue d'oiseau environ 500g;1.56;10;1;Hallal
+H48;Lentilles corail;2.09;10;1;Hallal
+H49;Olives noires environ 400g;5.24;10;1;Hallal
+H50;Pain tacos;4.50;10;1;Hallal
+H51;Pate de dattes;2.89;10;1;Hallal
+H52;Persil environ 90g;2.09;10;1;Hallal
+H53;Piments doux moulu environ 85g;2.33;10;1;Hallal
+H54;Pistaches environ 300g;6.29;10;1;Hallal
+H55;Pois chices sec environ 1Kg;2.89;10;1;Hallal
+H56;Raisins secs environ 300g;3.10;10;1;Hallal
+H57;Sauce algérienne 500ml;4.19;10;1;Hallal
+H58;Sauce andalouse 500ml;4.19;10;1;Hallal
+H59;Sauce samouraï;4.19;10;1;Hallal
+H60;Semoule de blé fine 500g;1.84;10;1;Hallal
+H61;Thé noir ceylan;4.19;10;1;Hallal
+H62;Thé vert;3.67;10;1;Hallal
+H63;Halva pistache environ 350g;3.67;10;1;Hallal
+H64;Jus de citron;1.56;10;1;Hallal
+H65;Fleur d'oranger environ 245ml;1.56;10;1;Hallal
+F1;Beurre doux 250g;2.24;10;1;Fruits & Légumes
+F2;Beurre 1/2 sel 250g;2.24;10;1;Fruits & Légumes
+F3;Liegeois maestro chocolat 4*100g;1.02;10;1;Fruits & Légumes
+F4;Crème onctueuse vanille 4*125g;1.04;10;1;Fruits & Légumes
+F5;Camenbert 240g;1.61;10;1;Fruits & Légumes
+F6;Roquefort 100g;1.92;10;1;Fruits & Légumes
+F7;Emmental bloc 250g;2.11;10;1;Fruits & Légumes
+F8;Emmental rapé 100g;0.86;10;1;Fruits & Légumes
+F9;Fromage blanc 0% 4*100g;0.90;10;1;Fruits & Légumes
+F10;Yop fraise 825g;2.12;10;1;Fruits & Légumes
+F11;Yaourt nature 4*115g;0.60;10;1;Fruits & Légumes
+F12;Lait UHT 1/2 écrémé 1L;0.86;12;1;Fruits & Légumes
+F13;Oeufs frais par 6;1.09;10;1;Fruits & Légumes
+F14;Secret de crème uht 25% m,g, 3*20cl;3.78;10;1;Fruits & Légumes
+F15;Crème fraiche 30% m,g, pot 20cl;1.25;10;1;Fruits & Légumes
+F16;Buche chèvre 180g;1.92;10;1;Fruits & Légumes
+F17;Planta fin;2.78;10;1;Fruits & Légumes
+F18;Babybel;2.19;10;1;Fruits & Légumes
+F19;Bleu de bresse;3.41;10;1;Fruits & Légumes
+F20;Mozzarella;1.32;10;1;Fruits & Légumes
+F21;Lait entier 1L;1.36;12;1;Fruits & Légumes
+F22;Munster;3.25;10;1;Fruits & Légumes
+F23;Carré de l'est;2.49;10;1;Fruits & Légumes
+F24;Coulommiers;2.89;10;1;Fruits & Légumes
+F25;Pointe de brie;1.56;10;1;Fruits & Légumes
+F26;Rondelé ail et fines herbes;1.73;10;1;Fruits & Légumes
+F27;Yaourt fruits 4*125g;0.98;10;1;Fruits & Légumes
+F28;Avocat;1.35;10;1;Fruits & Légumes
+F29;Concombre pièce;1.27;10;1;Fruits & Légumes
+F30;Courgettes 1Kg;3.38;10;1;Fruits & Légumes
+F31;Endives 1Kg;3.71;10;1;Fruits & Légumes
+F32;Piments verts;0.49;10;1;Fruits & Légumes
+F33;Banane 1Kg;1.86;10;1;Fruits & Légumes
+F34;Kiwi pièce;0.54;10;1;Fruits & Légumes
+F35;Orange 1Kg;2.53;10;1;Fruits & Légumes
+F36;Aubergines;5.40;10;1;Fruits & Légumes
+F37;Poivrons verts;3.71;10;1;Fruits & Légumes
+F38;Ananas pièce;2.64;10;1;Fruits & Légumes
+F39;Carotte 1Kg;1.69;10;1;Fruits & Légumes
+F40;Echalotes sachet 250g;0.63;10;1;Fruits & Légumes
+F41;Oignon 1Kg;0.76;10;1;Fruits & Légumes
+F42;Pomme de terre 2,5Kg;1.69;10;1;Fruits & Légumes
+F43;Tomates 1Kg;2.19;10;1;Fruits & Légumes
+F44;Citron 1Kg;3.71;10;1;Fruits & Légumes
+F45;Pomme 1Kg;2.53;10;1;Fruits & Légumes
+F46;Poires 1Kg;3.55;10;1;Fruits & Légumes
+F47;Betterave cuite 250g;0.95;10;1;Fruits & Légumes
+F48;Ail filet 250g;2.11;10;1;Fruits & Légumes
+F49;Champignons barquette 500g;3.12;10;1;Fruits & Légumes
+F50;Batavia;1.27;10;1;Fruits & Légumes
+F51;Mangue;5.06;10;1;Fruits & Légumes
+F52;Blanc de poulet 4 tranches;1.59;10;1;Fruits & Légumes
+F53;Jambon cuit superieur 4 tranches;1.85;10;1;Fruits & Légumes
+F54;Chorizo pur porc fort 250g;1.70;10;1;Fruits & Légumes
+F55;Jambon cru 4 tranches;1.61;10;1;Fruits & Légumes
+F56;Lardons fumés 250g;1.45;10;1;Fruits & Légumes
+F57;Saucisses de francfort *5;1.30;10;1;Fruits & Légumes
+F58;Barquette rosette *10;1.11;10;1;Fruits & Légumes
+F60;Liégeois maestro café 4*100g;1.02;10;1;Fruits & Légumes
+F61;Petit nova aux fruits 6*60g;0.89;10;1;Fruits & Légumes
+F62;Petit nature (par 6);1.03;10;1;Fruits & Légumes
+F63;Riz au lait nappé caramel 100g;0.31;10;1;Fruits & Légumes
+F64;Parmesan 100g;2.09;10;1;Fruits & Légumes
+F65;Mascarpone 250g;2.19;10;1;Fruits & Légumes
+F66;Kit pot au feu;3.11;10;1;Fruits & Légumes
+F67;Cheddar en tranches *8;1.84;10;1;Fruits & Légumes
+F70;Surimi batonnet crabe 500g;5.40;10;1;Fruits & Légumes
+F71;Raclette en tranches env 400g;4.64;10;1;Fruits & Légumes
+F72;Poulet fumé halal 1,1Kg;6.84;10;1;Fruits & Légumes
+B1;Cristaline 1,5L;0.20;18;1;Boissons
+B2;Cristaline gazeuse 1,5L;0.32;18;1;Boissons
+B3;Pepsi 33cl;0.65;24;1;Boissons
+B4;Limonade Blanche 1,5L;0.43;12;1;Boissons
+B5;Sirop citron 1L;2.56;6;1;Boissons
+B6;Bavaria Sans Alcool 33cl;0.41;24;1;Boissons
+B7;Carola rouge 1,25L;0.71;12;1;Boissons
+B8;Salvetat 1,15L;0.65;12;1;Boissons
+B9;Saint Yorre 1,15L;0.73;12;1;Boissons
+B10;Orangina 33cl;0.69;24;1;Boissons
+B11;Oasis Tropical 33cl;0.67;24;1;Boissons
+B12;Ica tea 33cl;0.70;24;1;Boissons
+B13;Coca-cola light 33cl;0.69;24;1;Boissons
+B14;Coca-cola 1,25L;1.96;12;1;Boissons
+B15;Coca-cola 33cl;0.72;24;1;Boissons
+B16;Sprite 33cl;0.54;24;1;Boissons
+B18;Cocktail multivitaminé 1L;1.11;12;1;Boissons
+B19;Jus de raisin 1L;1.01;12;1;Boissons
+B20;Jus d'orange 1L;1.74;12;1;Boissons
+B21;Jus de pomme 1L;0.92;12;1;Boissons
+B22;Sirop de fraise 1L;2.81;6;1;Boissons
+B23;Sirop de grenadine;2.59;6;1;Boissons
+B24;Sirop de menthe;2.42;6;1;Boissons
+B25;Vittel 1,5L;0.90;12;1;Boissons
+P1;Croissant;1.31;10;1;Patisserie
+P2;Pain au chocolat;1.31;10;1;Patisserie
+P3;Escargot aux raisons;1.84;10;1;Patisserie
+P4;Brioche 6 personnes;9.61;10;1;Patisserie
+P5;Grand pain viennois;2.89;10;1;Patisserie
+P6;Chausson aux pommes;1.84;10;1;Patisserie
+P7;Quiche lorraine;3.31;10;1;Patisserie
+P8;Quiche au thon;3.31;10;1;Patisserie
+P9;Baguette aux graines;1.63;10;1;Patisserie
+P10;Pain complet;3.10;10;1;Patisserie
+P11;Gateau Paris-Brest (8 personnes);33.34;10;1;Patisserie
+P12;Eclair vanille;3.26;10;1;Patisserie
+P13;Eclair café;3.26;10;1;Patisserie
+P14;Eclair chocolat;3.26;10;1;Patisserie
+P15;Millefeuilles;4.31;10;1;Patisserie
+P16;Flan;4.10;10;1;Patisserie
+P17;Paris-Brest;4.31;10;1;Patisserie
+P18;Framboisier 6 personnes;26.62;10;1;Patisserie
+P19;Escargot chocolat;1.84;10;1;Patisserie
+P20;Pâté lorrain;3.31;10;1;Patisserie
+P21;Tourte lorraine;3.47;10;1;Patisserie
+P22;Fraisier (6 personnes);26.62;10;1;Patisserie
+P23;Royal;4.57;10;1;Patisserie
+P24;Pâté poulet curry;3.62;10;1;Patisserie
+P25;Tarte citron;4.31;10;1;Patisserie
+P26;Royal (6 personnes);26.62;10;1;Patisserie
+HY1;Crème à raser PALMOLIVE 100ml;1.21;10;1;Hygiène
+HY3;Savon à barbe en bol 125g MONSAVON;1.19;10;1;Hygiène
+HY4;Savon CADUM 100g;1.93;1;1;Hygiène
+HY5;Blaireau en soie;1.49;1;1;Hygiène
+HY6;Brosse à cheveux;0.52;10;1;Hygiène
+HY7;Dentifrice AQUAFRESH triple action 75ml;1.68;10;1;Hygiène
+HY8;Shampoing anti pelliculaire DOP 500ml;3.04;10;1;Hygiène
+HY9;Fil dentaire ORAL B;5.94;10;1;Hygiène
+HY10;Shampoing HEAD AND SHOULDERS 250ml;3.34;10;1;Hygiène
+HY12;Lime à ongle;0.79;1;1;Hygiène
+HY13;Peigne sans étui;0.10;1;1;Hygiène
+HY14;Nettoyant lunettes vu *24 pochettes;2.36;10;1;Hygiène
+HY15;Shampoing aux oeufs 750ml;0.86;10;1;Hygiène
+HY16;Tube PENTO 100ml;2.53;10;1;Hygiène
+HY17;Lait corps NIVEA BODY peau sèche 250ml;4.62;10;1;Hygiène
+HY18;Brosse à dent dur SIGNAL;2.29;5;1;Hygiène
+HY19;Nettoyant appareil dentaire polydent;2.43;10;1;Hygiène
+HY20;Recharge GILETTE MACH 3;16.39;1;1;Hygiène
+HY21;Gel fixation extreme VIVEL DOP 150ml;5.40;10;1;Hygiène
+HY22;Dentifrice SENSODYNE tube 75ml;5.55;10;1;Hygiène
+HY23;Gel à raser GILETTE 200ml;3.67;10;1;Hygiène
+HY24;Rasoir MACH 3 + 1 lame GILETTE;9.92;1;1;Hygiène
+HY26;Pansements *20;0.89;10;1;Hygiène
+HY30;Coton tige;0.41;10;1;Hygiène
+HY31;Crème hydratante NIVEA 100ml;2.24;10;1;Hygiène
+HY32;Dentifrice antitartre SIGNAL 75ml;1.08;10;1;Hygiène
+HY33;Dentifrice protection caries SIGNAL 75ml;1.08;10;1;Hygiène
+HY34;Déo stick WILLIAMS 75ml;2.82;10;1;Hygiène
+HY35;Déo bille unisex 50ml;0.76;10;1;Hygiène
+HY36;Gel coiffant 250ml;0.74;10;1;Hygiène
+HY37;Gel douche FA 250ml;1.44;12;1;Hygiène
+HY38;Mouchoirs;0.08;15;1;Hygiène
+HY39;Papier hygiènique 1 rouleau;0.20;18;1;Hygiène
+HY42;Savon de marseille 100g MONSAVON;0.39;10;1;Hygiène
+HY43;Shampoing FL Amande;0.86;10;1;Hygiène
+HY44;Gel nettoyant anti imperfection NEUTROGENA;5.52;10;1;Hygiène
+HY45;Bain de bouche COLGATE 500ml;3.66;10;1;Hygiène
+HY46;Gel doucha AXE 250ml;1.92;12;1;Hygiène
+HY48;Mirroir 18*24;0.86;1;1;Hygiène
+HY49;Shampoing 2 en 1 FRUCTIS 250ml;2.34;10;1;Hygiène
+HY50;Crème adhésive pour prothèse dentaire 40g;3.36;10;1;Hygiène
+HY51;Brosse à dent SIGNAL souple;0.60;5;1;Hygiène
+HY52;Coupe ongle grand modèle;0.60;1;1;Hygiène
+HY54;Rasoir jetable;0.50;1;1;Hygiène
+HY55;Stick lèvre 4g;0.95;10;1;Hygiène
+HY57;Rasoir + 21 lames;2.93;1;1;Hygiène
+HY58;Brosse à dent médium 1er prix;0.14;5;1;Hygiène
+HY59;Baume après rasage sans alcool MENNEN 100ml;5.64;10;1;Hygiène
+AC1;Papier à cigarettes OCB;0.70;10;1;Accidentelle
+AC2;Papier à cigarettes RIZLA;0.70;10;1;Accidentelle
+AC3;Filtre à cigarettes OCB 6mm;0.87;10;1;Accidentelle
+AC4;Filtre à cigarettes RIZLA 8mm;1.43;10;1;Accidentelle
+AC5;Tube à cigarettes OCB 100 Tubes;0.92;10;1;Accidentelle
+AC6;Machine à tube;5.18;10;1;Accidentelle
+AC7;Rouleur petit modèle RIZLA;2.48;10;1;Accidentelle
+AC8;Briquet électronique;0.16;10;1;Accidentelle
+AC9;Cendrier;1.28;1;1;Accidentelle
+AC10;Couteau bout rond;0.80;2;1;Accidentelle
+AC11;Cuiller à café;0.14;2;1;Accidentelle
+AC12;Cuillère à soupe;0.26;2;1;Accidentelle
+AC13;Fourchette;0.26;2;1;Accidentelle
+AC14;Verre transparent 16cl;0.52;2;1;Accidentelle
+AC15;Assiette transparente creuse 23cm;0.97;2;1;Accidentelle
+AC16;Assiette transparente plate;1.67;2;1;Accidentelle
+AC17;Bol transparent 51cl;1.12;2;1;Accidentelle
+AC18;Mug blanc;1.87;2;1;Accidentelle
+AC19;Louche nylon;1.51;1;1;Accidentelle
+AC20;Spatule en bois;0.65;2;1;Accidentelle
+AC21;Econome;1.25;2;1;Accidentelle
+AC22;Râpe fonction inox;2.93;2;1;Accidentelle
+AC23;Ouvre boites;0.62;2;1;Accidentelle
+AC24;Passoire en plastique;1.16;2;1;Accidentelle
+AC25;Saladier plastique;0.99;2;1;Accidentelle
+AC26;Presse agrume avec bec verseur;1.38;2;1;Accidentelle
+AC27;Casserole inox 18cm;6.94;2;1;Accidentelle
+AC28;Poêle anti adhésive 22cm;5.28;2;1;Accidentelle
+AC29;Couvercle inox 25cm;3.99;2;1;Accidentelle
+AC30;Boites hermétiques lot de 3;2.18;2;1;Accidentelle
+AC31;Egouttoir vaisselle plastique;3.28;2;1;Accidentelle
+AC32;Cuvette plastique;1.24;2;1;Accidentelle
+AC33;Seau 10L;2.55;2;1;Accidentelle
+AC34;Balai vinyl plastique;2.00;2;1;Accidentelle
+AC35;Manche balai;1.52;1;1;Accidentelle
+AC36;Pelle + balayette plastique;1.01;2;1;Accidentelle
+AC37;Poubelle plastique 25L;7.24;2;1;Accidentelle
+AC38;Kit WC brosse + socle;1.32;2;1;Accidentelle
+AC40;Lessive génie gel tube 200ml;2.66;10;1;Accidentelle
+AC41;Lessive génie poudre 450g;2.29;10;1;Accidentelle
+AC42;Lessive liquide LE CHAT 1,89L;9.60;10;1;Accidentelle
+AC43;Lessive OMO;12.77;10;1;Accidentelle
+AC44;Assouplissant soupline 1,9L;4.86;10;1;Accidentelle
+AC45;Lingettes St MARC multi usages;2.22;10;1;Accidentelle
+AC46;Nettoyant ménager Mr PROPRE 1,3L;4.20;10;1;Accidentelle
+AC47;Nettoyant ménager St MARC 1L;3.00;10;1;Accidentelle
+AC48;Eau de javel 2,6% 250ml;0.26;3;1;Accidentelle
+AC50;Liquide vaisselle 1L;0.72;10;1;Accidentelle
+AC51;Produit vaisselle Paic citron 750ml;1.85;10;1;Accidentelle
+AC52;Crème à récurer 750ml;1.24;10;1;Accidentelle
+AC53;Gel WC 750ml;1.01;10;1;Accidentelle
+AC54;Bloc déo WC à accrocher;1.82;10;1;Accidentelle
+AC55;Febreze textile 500ml;4.92;10;1;Accidentelle
+AC56;Diffuseur électrique AIR WICK;5.07;1;1;Accidentelle
+AC57;Recharge pour diffuseur AIR WICK;4.58;10;1;Accidentelle
+AC60;Balai kit avec 8 recharge SWIFer;21.05;10;1;Accidentelle
+AC61;Serpière 50*60cm;0.70;10;1;Accidentelle
+AC62;Brosse à laver le linge;1.13;10;1;Accidentelle
+AC63;Pinces à linges *12;0.72;10;1;Accidentelle
+AC65;Chiffons microfibres;1.04;10;1;Accidentelle
+AC66;Torchon de cuisine 50*70cm;0.69;10;1;Accidentelle
+AC67;Papier essui-tout *2;0.84;10;1;Accidentelle
+AC68;Sac poubelle 30L;0.54;10;1;Accidentelle
+AC69;Piles LR03 *4;0.57;10;1;Accidentelle
+AC70;Piles LR06 *4;0.57;10;1;Accidentelle
+AC71;Piles LR14 *2;2.07;10;1;Accidentelle
+AC72;Piles LR 20 *2;2.25;10;1;Accidentelle
+AC73;Lampe de chevet à pince pour ampoule E27;6.36;2;1;Accidentelle
+AC74;Ampoule LED E27;0.78;10;1;Accidentelle
+AC75;Ampoule LED E14;1.81;10;1;Accidentelle
+AC76;Bloc 3 prises avec terre et rallonge;2.16;1;1;Accidentelle
+AC77;Rallonge avec terre;4.08;1;1;Accidentelle
+AC79;Cordon HDMI 1,50m;4.02;1;1;Accidentelle
+AC80;Lacets noirs;1.04;10;1;Accidentelle
+AC81;Cirage applicateur incolore;1.42;10;1;Accidentelle
+AC82;Nécessaire de couture;1.20;10;1;Accidentelle
+AC83;Boule quies;6.91;10;1;Accidentelle
+AC85;Déodorisant stick *2;1.14;10;1;Accidentelle
+AC86;Cintre plastique;0.17;10;1;Accidentelle
+AC87;Bouteille isolante 1L;10.47;1;1;Accidentelle
+AC88;Porte filtre;4.38;2;1;Accidentelle
+AC89;Filtre à café N°4;1.14;10;1;Accidentelle
+AC90;Cafetière italienne induction BIALETTI;33.20;1;1;Accidentelle
+AC91;Rouleau papier cuisson 15m;1.59;1;1;Accidentelle
+AC92;Table de cuisson + faitout;55.20;1;1;Accidentelle
+AC93;Ventilateur;21.00;1;1;Accidentelle
+AC94;Réveil matin;2.53;2;1;Accidentelle
+AC95;Tondeuse barbe, nez, oreille PHILIPS;41.45;1;1;Accidentelle
+AC96;Tondeuse à barbe GILETTE;40.28;1;1;Accidentelle
+AC97;Tondeuse cheuveux pro BABYLISS;31.88;1;1;Accidentelle
+AC98;Bloc correspondance ligné;1.27;10;1;Accidentelle
+AC99;Bloc correspondance uni;1.26;10;1;Accidentelle
+AC100;Cahier de 96 pages;0.46;10;1;Accidentelle
+AC101;Stylo bleu;0.09;10;1;Accidentelle
+AC102;Stylo noir;0.09;10;1;Accidentelle
+AC103;Stylo 4 couleurs;1.99;10;1;Accidentelle
+AC104;Gomme;0.53;10;1;Accidentelle
+AC105;Crayon de papier;0.13;10;1;Accidentelle
+AC106;Ramette papier 500 feuilles blanches;6.97;10;1;Accidentelle
+AC107;Chemise sans rabat à élastique;0.53;10;1;Accidentelle
+AC108;Ciseaux bout rond;0.41;10;1;Accidentelle
+AC109;Batton de colle;0.26;10;1;Accidentelle
+AC110;Rouleau ruban adhésif;0.24;10;1;Accidentelle
+AC111;Pochettes de 12 crayon de couleurs;0.96;10;1;Accidentelle
+AC112;Enveloppes adhésive 110*220 paquet de 25;0.53;10;1;Accidentelle
+AC113;Enveloppes adhésive 114*162 paquet de 25;0.45;10;1;Accidentelle
+AC114;Enveloppes Kraft 162*229 paquet de 25;1.38;10;1;Accidentelle
+AC115;Enveloppes kraft 229*324 paquet de 25;2.21;10;1;Accidentelle
+AC116;Carte anniversaire;1.07;10;1;Accidentelle
+AC117;Carte bonne fête;0.93;10;1;Accidentelle
+AC118;Carte de noël;0.93;10;1;Accidentelle
+AC119;Carte de vœux;0.93;10;1;Accidentelle
+AC120;Jeux de tarot;2.49;10;1;Accidentelle
+AC121;Jeu de 54 cartes;0.55;10;1;Accidentelle
+AC122;Bouilloire électrique 0,9L 500W BESTRON;12.47;10;1;Accidentelle
+AC123;Eponge végétale individuelle;0.18;10;1;Accidentelle
+T1;News;12.40;20;1;Tabac
+T2;News à rouler 30g;17.40;10;1;Tabac
+T4;Pot News 30g;17.40;10;1;Tabac
+T5;Lucky strike;12.50;20;1;Tabac
+T6;Camel filtre paquet rigide;12.50;20;1;Tabac
+T7;Winston light paquet de 20;12.50;20;1;Tabac
+T8;Camel à rouler 30g;18.15;20;1;Tabac
+T9;Mehari's java;14.00;20;1;Tabac
+T10;Winston filtre paquet rigide;12.50;20;1;Tabac
+T11;Malboro à rouler 30g;18.25;20;1;Tabac
+T12;Mini java cigarillos *20;12.40;20;1;Tabac
+T13;Gauloise blonde paquet de 20;12.50;20;1;Tabac
+T14;Intervalle blanc;24.40;20;1;Tabac
+T15;Intervalle Bleu;24.55;20;1;Tabac
+T16;JPS american blend;12.50;20;1;Tabac
+T17;John player special;12.50;20;1;Tabac
+T18;La paz cigarillos *5;6.25;20;1;Tabac
+T19;Malboro;13.00;20;1;Tabac
+T20;Malboro light;13.00;20;1;Tabac
+T21;Malboro 100S;13.00;20;1;Tabac
+T23;Winston à rouler blond;18.25;20;1;Tabac
+T24;Winston à rouler brun;18.25;20;1;Tabac
+T25;Pall mall à rouler;17.50;20;1;Tabac

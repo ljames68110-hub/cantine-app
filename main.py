@@ -6,6 +6,10 @@ import database as db
 import impression
 import updater
 import calendrier
+import import_liste
+import repartition
+import ration
+import catalogue_data
 
 # ─────────────────────────────────────────────
 # THEME
@@ -23,16 +27,21 @@ BORDER     = "#374151"
 HEADER_BG  = "#003366"
 GOLD       = "#f59e0b"
 
-CATEGORIES = [
-    ("Patisserie",     "🥐", "#c2410c"),
-    ("Tabac",          "🚬", "#4b5563"),
-    ("Accidentelle",   "🏠", "#7c3aed"),
-    ("Hygiène",        "🧴", "#0891b2"),
-    ("Hallal",         "🥩", "#059669"),
-    ("Alimentaire",    "🛒", "#d97706"),
-    ("Fruits & Légumes","🍎","#16a34a"),
-    ("Boissons",       "🥤", "#2563eb"),
-]
+# Catégories du nouveau catalogue (ordre par jour de livraison, lundi→vendredi).
+# (nom, emoji, couleur de bande) construites depuis catalogue_data.
+try:
+    CATEGORIES = [(nom, emoji, bande)
+                  for (nom, _pref, _jour, bande, _bg, emoji)
+                  in catalogue_data.CATEGORIES_META]
+except Exception:
+    CATEGORIES = [
+        ("BOISSONS", "🥤", "#e86a92"), ("PRODUITS LAITIERS", "🧀", "#e39a90"),
+        ("FRUITS & LEGUMES", "🍎", "#e6cf2e"), ("CASHER", "🍽", "#e23b2e"),
+        ("ALIMENTAIRE", "🛒", "#ef9433"), ("PRODUITS FRAIS", "🥩", "#3fa9e0"),
+        ("HALAL", "🍖", "#b58fc9"), ("ENTRETIEN HYGIENE", "🧴", "#7cc47e"),
+        ("PATISSERIES", "🥐", "#e0a93a"), ("TABAC", "🚬", "#d8cba0"),
+        ("REVUES", "📖", "#78c92e"),
+    ]
 
 def _app_dir():
     """Dossier données utilisateur — fonctionne en .py ET en .exe PyInstaller."""
@@ -192,15 +201,18 @@ def _maj_traiter_resultat(parent, info, status_cb, silencieux=False):
         return
 
     version_connue = info.get("version") and info["version"] != "?"
+    # Normalise l'affichage : le tag GitHub contient déjà un « v » (ex. "v6.1"),
+    # on enlève les v/V en tête pour ne pas afficher « vv6.1 ».
+    version_aff = str(info.get("version", "")).lstrip("vV")
 
     if status_cb:
-        label = (f"🆕 Nouvelle version disponible : v{info['version']}" if version_connue
+        label = (f"🆕 Nouvelle version disponible : v{version_aff}" if version_connue
                  else "📦  Fichier d'installation prêt à installer")
         status_cb(label, GOLD)
 
     notes = (info.get("notes") or "").strip()
     if version_connue:
-        msg = f"Une nouvelle version (v{info['version']}) est disponible.\n"
+        msg = f"Une nouvelle version (v{version_aff}) est disponible.\n"
     else:
         msg = "Installer le fichier d'installation sélectionné ?\n"
     if notes:
@@ -656,9 +668,6 @@ class CantineApp(tk.Tk):
         tk.Label(bar, text="🏛️  GESTION DE CANTINE",
                  font=("Helvetica",14,"bold"), bg=HEADER_BG, fg="white").pack(side="left", padx=20)
 
-        right = tk.Frame(bar, bg=HEADER_BG)
-        right.pack(side="right", padx=10)
-
         # Infos utilisateur
         ui = self.user_info
         badge = "👤" if self.user_type == "yoann" else "👥"
@@ -672,29 +681,52 @@ class CantineApp(tk.Tk):
         self.budget_lbl.pack(side="right", padx=16)
         self._update_budget_lbl()
 
-        # Boutons header
-        def hbtn(parent, text, cmd, bg=HEADER_BG, fg="white"):
-            b = tk.Button(parent, text=text, command=cmd,
-                          font=("Helvetica",9), bg=bg, fg=fg,
-                          bd=0, relief="flat", cursor="hand2",
-                          activebackground=ACCENT, activeforeground="white",
-                          pady=4, padx=8)
-            b.pack(side="left", padx=2)
-            return b
+        # ── Barre d'outils (sous le titre) : tous les boutons, sur 2 rangées ──
+        toolbar = tk.Frame(self, bg=PANEL_BG)
+        toolbar.pack(fill="x")
 
+        def mk(parent, text, cmd, bg=HEADER_BG, fg="white"):
+            return tk.Button(parent, text=text, command=cmd,
+                             font=("Helvetica", 9), bg=bg, fg=fg,
+                             bd=0, relief="flat", cursor="hand2",
+                             activebackground=ACCENT, activeforeground="white",
+                             pady=5, padx=8)
+
+        specs = []
         if self.user_type == "yoann":
-            hbtn(right, "✍️ Signature", self._gerer_signature)
-            hbtn(right, "⚙️ Paramètres", self._ouvrir_parametres)
-            hbtn(right, "📋 Catalogue", self._ouvrir_catalogue)
-            hbtn(right, "🔑 MDP", self._changer_mdp)
-            hbtn(right, "🔄 Mises à jour", self._verifier_maj_manuelle)
-            hbtn(right, "💰 Créances", lambda: CreancesWindow(self))
+            specs += [
+                ("✍️ Signature", self._gerer_signature, HEADER_BG, "white"),
+                ("⚙️ Paramètres", self._ouvrir_parametres, HEADER_BG, "white"),
+                ("📋 Catalogue", self._ouvrir_catalogue, HEADER_BG, "white"),
+                ("🔑 MDP", self._changer_mdp, HEADER_BG, "white"),
+                ("🔄 Mises à jour", self._verifier_maj_manuelle, HEADER_BG, "white"),
+                ("💰 Créances", lambda: CreancesWindow(self), HEADER_BG, "white"),
+                ("🎯 Répartir dettes", self._repartir_dettes, "#7c3aed", "white"),
+                ("📦 Réserve", self._ouvrir_reserve, "#0e7490", "white"),
+                ("📊 Widget stock", self._ouvrir_widget_stock, "#0e7490", "white"),
+                ("🚚 Livraisons", lambda: LivraisonsWindow(self), "#0e7490", "white"),
+                ("💶 Remboursements", lambda: RemboursementsWindow(self), "#b45309", "white"),
+                ("🍽️ Planning repas", self._ouvrir_planning, "#059669", "white"),
+                ("🥗 Ration 15j", self._ouvrir_ration, "#059669", "white"),
+                ("🧼 Hygiène", self._ouvrir_hygiene, "#0891b2", "white"),
+            ]
+        specs += [
+            ("💰 Budget", self._modifier_budget, HEADER_BG, "white"),
+            ("🏦 Compte", self._ouvrir_compte, HEADER_BG, "white"),
+            ("📁 Historique", self._ouvrir_historique, HEADER_BG, "white"),
+            ("🖨️ Tout imprimer", self._imprimer_tous_bons, "#7c3aed", "white"),
+            ("⏻ Quitter", self._on_close, DANGER, "white"),
+        ]
 
-        hbtn(right, "💰 Budget", self._modifier_budget)
-        hbtn(right, "🏦 Compte", self._ouvrir_compte)
-        hbtn(right, "📁 Historique", self._ouvrir_historique)
-        hbtn(right, "🖨️ Tout imprimer", self._imprimer_tous_bons, bg="#7c3aed", fg="white")
-        hbtn(right, "⏻ Quitter", self._on_close, bg=DANGER, fg="white")
+        # Répartition sur 2 rangées équilibrées
+        import math as _math
+        par_rangee = _math.ceil(len(specs) / 2)
+        for i, (text, cmd, bg, fg) in enumerate(specs):
+            r, c = divmod(i, par_rangee)
+            mk(toolbar, text, cmd, bg, fg).grid(row=r, column=c, padx=2, pady=3,
+                                                sticky="ew")
+        for c in range(par_rangee):
+            toolbar.columnconfigure(c, weight=1)
 
         # Contenu
         self.content = tk.Frame(self, bg=DARK_BG)
@@ -782,6 +814,134 @@ class CantineApp(tk.Tk):
         win = HistoriqueWindow(self, self.user_type, self.user_info)
         win.grab_set()
 
+    # ── Import d'une liste de cantine ────────
+    def _importer_liste(self):
+        chemin = filedialog.askopenfilename(
+            parent=self, title="Choisir le fichier de liste de cantine",
+            filetypes=[("Fichiers pris en charge", "*.xlsx *.xls *.csv *.txt"),
+                       ("Excel", "*.xlsx *.xls"), ("CSV", "*.csv"),
+                       ("Texte", "*.txt"), ("Tous les fichiers", "*.*")])
+        if not chemin:
+            return
+        produits = db.get_produits(actif_only=False)
+        try:
+            resultat = import_liste.analyser_fichier(chemin, produits)
+        except Exception as e:
+            messagebox.showerror("Import",
+                f"Impossible de lire le fichier :\n{e}", parent=self)
+            return
+        if not resultat["personnes"] or all(
+                not p["lignes"] for p in resultat["personnes"]):
+            msg = "Aucun produit reconnu dans le fichier."
+            if resultat["erreurs"]:
+                msg += "\n\n" + "\n".join(resultat["erreurs"][:10])
+            messagebox.showwarning("Import", msg, parent=self)
+            return
+        try:
+            ImportListeWindow(self, resultat, self.user_info, self.user_type,
+                              None)
+        except Exception as e:
+            import traceback
+            messagebox.showerror("Import",
+                f"Erreur à l'ouverture de l'aperçu :\n{e}\n\n{traceback.format_exc()}",
+                parent=self)
+
+    # ── Répartition d'articles par dette ─────
+    def _repartir_dettes(self):
+        # 1) Choix de la source des articles
+        total_reserve = db.reserve_total()
+        source = SourceRepartitionDialog(self, total_reserve).resultat
+        if source is None:
+            return
+
+        if source == "reserve":
+            articles = db.get_reserve()
+            if not articles:
+                messagebox.showinfo("Réserve vide",
+                    "Votre réserve est vide.\n\nUtilisez « 📦 Réserve » pour y "
+                    "importer une liste de cantine d'abord.", parent=self)
+                return
+            mode = "reserve"
+        else:
+            # Catalogue : chaque produit actif jusqu'à sa quantité max
+            produits = db.get_produits(actif_only=True)
+            articles = [{"id":p[0], "nom":p[1], "categorie":p[2],
+                         "prix":p[3], "qte":p[4]} for p in produits if p[4] and p[3]>0]
+            mode = "catalogue"
+
+        # 2) Saisie des dettes (nom + montant)
+        dettes = SaisieDettesDialog(self).resultat
+        if not dettes:
+            return
+
+        # 3) Calcul de la répartition
+        try:
+            resultat = repartition.repartir(articles, dettes, marge_euros=3.0)
+        except Exception as e:
+            import traceback
+            messagebox.showerror("Répartition",
+                f"Erreur de calcul :\n{e}\n\n{traceback.format_exc()}", parent=self)
+            return
+
+        # 4) Prévisualisation + validation
+        try:
+            RepartitionWindow(self, resultat, mode, self.user_info,
+                              self.user_type, None)
+        except Exception as e:
+            import traceback
+            messagebox.showerror("Répartition",
+                f"Erreur à l'affichage :\n{e}\n\n{traceback.format_exc()}", parent=self)
+
+    # ── Gestion de la réserve ────────────────
+    def _ouvrir_reserve(self):
+        ReserveWindow(self)
+
+    def _ouvrir_widget_stock(self):
+        """Ouvre le widget de stock. Il est maintenant INTÉGRÉ à l'application :
+        on relance le même programme (Cantine.exe) avec l'option « --widget »,
+        plus besoin d'un StockWidget.exe séparé."""
+        try:
+            if getattr(sys, "frozen", False):
+                # En .exe : relance Cantine.exe en mode widget
+                subprocess.Popen([sys.executable, "--widget"])
+            else:
+                # En script : relance main.py en mode widget
+                base = os.path.dirname(os.path.abspath(__file__))
+                subprocess.Popen([sys.executable,
+                                  os.path.join(base, "main.py"), "--widget"])
+        except Exception as e:
+            messagebox.showerror("Widget stock", f"Impossible d'ouvrir : {e}",
+                                 parent=self)
+
+    # ── Planning repas ───────────────────────
+    def _ouvrir_ration(self):
+        RationWindow(self)
+
+    def _ouvrir_hygiene(self):
+        HygieneWindow(self)
+
+    def _ouvrir_planning(self):
+        try:
+            from planning_repas import CadrePlanningRepas
+        except Exception as e:
+            messagebox.showerror("Planning repas",
+                f"Module Planning repas introuvable :\n{e}", parent=self)
+            return
+        fen = tk.Toplevel(self)
+        fen.title("Planning repas")
+        fen.geometry("1180x740")
+        fen.configure(bg=DARK_BG)
+        try:
+            dossier_export = os.path.join(APP_DIR, "planning_exports")
+            os.makedirs(dossier_export, exist_ok=True)
+            CadrePlanningRepas(fen, chemin_db=db.DB_PATH,
+                               dossier_export=dossier_export).pack(fill="both", expand=True)
+        except Exception as e:
+            import traceback
+            fen.destroy()
+            messagebox.showerror("Planning repas",
+                f"Erreur à l'ouverture :\n{e}\n\n{traceback.format_exc()}", parent=self)
+
     # ── Compte cantinable ────────────────────
     def _ouvrir_compte(self):
         win = CompteWindow(self)
@@ -805,15 +965,20 @@ class CantineApp(tk.Tk):
         pdfs, errors = [], []
         for bon in bons_today:
             bid, date, cat, nom, prenom, ecrou, bat, cell, total, *rest = bon
-            utype    = rest[0] if rest else "invite"
+            utype       = rest[0] if len(rest) > 0 else "invite"
+            est_creance = rest[1] if len(rest) > 1 else 0
             lig_raw  = db.get_lignes_bon(bid)
             lignes   = [{"id":l[2],"nom":l[3],"prix":l[4],"qte":l[5],"total":l[6],"qte_max":0}
                         for l in lig_raw]
-            sp       = sig_path if utype == "yoann" else None
+            sp       = (sig_path if utype == "yoann" else None) if not est_creance else None
             pdf_path = os.path.join(pdf_dir, f"bon_{bid}_{cat}.pdf")
             try:
-                nom_p, prenom_p, ecrou_p, bat_p, cell_p, date_p = _identite_bon(
-                    nom, prenom, ecrou, bat, cell, date)
+                if est_creance:
+                    nom_p = prenom_p = ecrou_p = bat_p = cell_p = ""
+                    date_p = date
+                else:
+                    nom_p, prenom_p, ecrou_p, bat_p, cell_p, date_p = _identite_bon(
+                        nom, prenom, ecrou, bat, cell, date)
                 impression.generer_bon_pdf(cat, nom_p, prenom_p, ecrou_p, bat_p, cell_p,
                                            lignes, total, date_p, pdf_path,
                                            signature_path=sp)
@@ -1111,6 +1276,27 @@ class CommandeWindow(tk.Toplevel):
                                 "signature désactivée, ce bon sera enregistré comme créance",
                      font=("Helvetica",9,"bold"), bg="#78350f", fg="#fef3c7",
                      pady=5).pack(fill="x")
+
+        # ── Rappel stock bas (à racheter) ────────────────────────────────
+        try:
+            bas = db.get_stock_bas()
+        except Exception:
+            bas = []
+        if bas:
+            ici = [b for b in bas if b.get("categorie") == self.categorie]
+            autres = [b for b in bas if b.get("categorie") != self.categorie]
+            parts = []
+            if ici:
+                parts.append("dans cette catégorie : "
+                             + ", ".join(f"{b['nom']} (reste {b['qte']})" for b in ici))
+            if autres:
+                parts.append("autres : "
+                             + ", ".join(f"{b['nom']} ({b['qte']})" for b in autres[:6])
+                             + ("…" if len(autres) > 6 else ""))
+            txt = "🛒  À racheter — bientôt en rupture dans ton stock → " + "  |  ".join(parts)
+            tk.Label(self, text=txt, font=("Helvetica", 9, "bold"),
+                     bg="#7c2d12", fg="#fed7aa", anchor="w", justify="left",
+                     wraplength=1100, pady=6, padx=12).pack(fill="x")
 
         # ── Zone principale en GRID (2 colonnes fiables) ─────────────────
         main = tk.Frame(self, bg=DARK_BG)
@@ -1497,11 +1683,18 @@ class CommandeWindow(tk.Toplevel):
         fname    = f"bon_{self.categorie}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         pdf_path = os.path.join(pdf_dir, fname)
         try:
-            nom_p, prenom_p, ecrou_p, bat_p, cell_p, date_p = _identite_bon(
-                ui["nom"], ui["prenom"], ui["ecrou"], ui["batiment"], ui["cellule"], date_str)
+            if est_creance:
+                # Créance : ni identité ni signature sur le bon imprimé
+                nom_p = prenom_p = ecrou_p = bat_p = cell_p = ""
+                date_p = date_str
+                sig_pdf = None
+            else:
+                nom_p, prenom_p, ecrou_p, bat_p, cell_p, date_p = _identite_bon(
+                    ui["nom"], ui["prenom"], ui["ecrou"], ui["batiment"], ui["cellule"], date_str)
+                sig_pdf = self.sig_path
             impression.generer_bon_pdf(
                 self.categorie, nom_p, prenom_p, ecrou_p, bat_p, cell_p, lignes, total, date_p,
-                pdf_path, signature_path=self.sig_path)
+                pdf_path, signature_path=sig_pdf)
             rep = messagebox.askyesno("✅  Bon sauvegardé",
                 f"Bon #{bon_id} enregistré !\n\nOuvrir le PDF maintenant ?",
                 parent=self)
@@ -1799,8 +1992,27 @@ class ParametresWindow(tk.Toplevel):
 
     def _build_impression(self, parent, params):
         """Onglet pour activer le mode d'impression des bons sans info détenu."""
-        frm = tk.Frame(parent, bg=DARK_BG, padx=30, pady=24)
-        frm.pack(fill="both", expand=True)
+        # Zone défilable (l'onglet a beaucoup de réglages)
+        canvas = tk.Canvas(parent, bg=DARK_BG, highlightthickness=0)
+        sb = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        frm = tk.Frame(canvas, bg=DARK_BG, padx=30, pady=24)
+        win_id = canvas.create_window((0, 0), window=frm, anchor="nw")
+        def _maj_scroll(_=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            canvas.itemconfig(win_id, width=canvas.winfo_width())
+        frm.bind("<Configure>", _maj_scroll)
+        canvas.bind("<Configure>", _maj_scroll)
+        # Molette souris
+        def _molette(e):
+            try:
+                canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+            except tk.TclError:
+                pass
+        canvas.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", _molette))
+        canvas.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
 
         tk.Label(frm, text="Confidentialité des bons imprimés",
                  font=("Helvetica",13,"bold"), bg=DARK_BG, fg=TEXT).pack(anchor="w", pady=(0,12))
@@ -1876,13 +2088,107 @@ class ParametresWindow(tk.Toplevel):
                  "ici : + horizontal décale vers la droite, + vertical vers le haut. "
                  "Faites un test d'impression, puis ajustez de quelques mm si besoin.",
             font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
-            wraplength=560, justify="left").pack(anchor="w", pady=(4,18))
+            wraplength=560, justify="left").pack(anchor="w", pady=(4,10))
+
+        # ── Géométrie du tableau pré-imprimé (mode noir) ─────────────────────
+        tk.Frame(frm, bg=BORDER, height=1).pack(fill="x", pady=(2,10))
+        tk.Label(frm, text="Grille du papier pré-imprimé (mode noir)",
+                 font=("Helvetica",11,"bold"), bg=DARK_BG, fg=TEXT).pack(anchor="w", pady=(0,6))
+
+        geo = tk.Frame(frm, bg=DARK_BG); geo.pack(fill="x", pady=(0,4))
+        tk.Label(geo, text="Position 1re ligne (mm du haut) :", width=30, anchor="w",
+                 font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left")
+        self.impr_y1_var = tk.StringVar(value=params.get("impr_y1","79"))
+        tk.Spinbox(geo, from_=30, to=120, increment=1, textvariable=self.impr_y1_var,
+                   width=6, font=("Helvetica",9), bg=CARD_BG, fg=TEXT, bd=0,
+                   buttonbackground=CARD_BG, insertbackground=TEXT).pack(side="left", padx=6)
+
+        geo2 = tk.Frame(frm, bg=DARK_BG); geo2.pack(fill="x", pady=(0,4))
+        tk.Label(geo2, text="Espacement entre lignes (mm) :", width=30, anchor="w",
+                 font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED).pack(side="left")
+        self.impr_pas_var = tk.StringVar(value=params.get("impr_pas","5.15"))
+        tk.Spinbox(geo2, from_=3.0, to=8.0, increment=0.05, format="%.2f",
+                   textvariable=self.impr_pas_var,
+                   width=6, font=("Helvetica",9), bg=CARD_BG, fg=TEXT, bd=0,
+                   buttonbackground=CARD_BG, insertbackground=TEXT).pack(side="left", padx=6)
+
+        tk.Label(frm,
+            text="Réglage crucial pour éviter que les valeurs « glissent » ligne après "
+                 "ligne. Utilisez le bouton « Test d'alignement » ci-dessous : il imprime "
+                 "les numéros 1, 2, 3… dans la colonne N°. Posez la feuille sur le papier "
+                 "de l'administration : si les numéros glissent vers le bas au fil des "
+                 "lignes, réduisez l'espacement ; s'ils remontent, augmentez-le. Ajustez "
+                 "la position de la 1re ligne pour caler le début.",
+            font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
+            wraplength=560, justify="left").pack(anchor="w", pady=(4,10))
+
+        # ── Décalage vertical par catégorie ──────────────────────────────────
+        # Certains blocs pré-imprimés (ex : Hygiène) sont décalés par rapport
+        # aux autres. On corrige UNE catégorie sans toucher aux autres.
+        self._CATS_DY = [(nom, impression._cat_slug(nom))
+                         for (nom, *_r) in catalogue_data.CATEGORIES_META]
+        _premier_nom, _premier_slug = self._CATS_DY[0]
+        catf = tk.Frame(frm, bg=DARK_BG); catf.pack(fill="x", pady=(0,4))
+        tk.Label(catf, text="Décalage vertical d'une catégorie :", width=30,
+                 anchor="w", font=("Helvetica",9), bg=DARK_BG,
+                 fg=TEXT_MUTED).pack(side="left")
+        self.dy_cat_var = tk.StringVar(value=_premier_nom)
+        om = tk.OptionMenu(catf, self.dy_cat_var,
+                           *[n for n, _ in self._CATS_DY],
+                           command=lambda _=None: self._maj_dy_cat())
+        om.config(font=("Helvetica",9), bg=CARD_BG, fg=TEXT, bd=0,
+                  highlightthickness=0, activebackground=CARD_BG,
+                  width=18); om.pack(side="left", padx=6)
+        self._dy_values = {slug: params.get(f"impr_dy_{slug}", "0")
+                           for _, slug in self._CATS_DY}
+        self._dy_cat_current = _premier_slug
+        self.dy_val_var = tk.StringVar(
+            value=self._dy_values.get(_premier_slug, "0"))
+        tk.Spinbox(catf, from_=-15, to=15, increment=0.5, format="%.1f",
+                   textvariable=self.dy_val_var, width=6, font=("Helvetica",9),
+                   bg=CARD_BG, fg=TEXT, bd=0, buttonbackground=CARD_BG,
+                   insertbackground=TEXT).pack(side="left", padx=6)
+        tk.Label(catf, text="mm", font=("Helvetica",9), bg=DARK_BG,
+                 fg=TEXT_MUTED).pack(side="left")
+        tk.Label(frm,
+            text="Positif = descend le texte, négatif = le remonte, pour cette "
+                 "catégorie uniquement. Ex. : l'Hygiène est réglée pour descendre "
+                 "car son bloc papier est plus bas que les autres. Choisissez la "
+                 "catégorie, ajustez, puis Enregistrer.",
+            font=("Helvetica",8), bg=DARK_BG, fg=TEXT_MUTED,
+            wraplength=560, justify="left").pack(anchor="w", pady=(2,10))
+
+        tk.Button(frm, text="🎯  Test d'alignement (imprimer)", command=self._test_alignement,
+                  font=("Helvetica",10,"bold"), bg=ACCENT, fg="white", bd=0,
+                  cursor="hand2", pady=7).pack(fill="x", pady=(0,10))
 
         tk.Button(frm, text="💾  Enregistrer", command=self._sauvegarder_impression,
                   font=("Helvetica",11,"bold"), bg=SUCCESS, fg="white", bd=0,
                   cursor="hand2", pady=8).pack(fill="x")
 
-    def _sauvegarder_impression(self):
+    def _maj_dy_cat(self):
+        """Change la catégorie affichée pour le décalage vertical."""
+        # Mémorise la valeur en cours d'édition pour l'ancienne catégorie
+        self._dy_values[self._dy_cat_current] = self.dy_val_var.get()
+        nom = self.dy_cat_var.get()
+        slug = dict(self._CATS_DY).get(nom, self._CATS_DY[0][1])
+        self._dy_cat_current = slug
+        self.dy_val_var.set(self._dy_values.get(slug, "0"))
+
+    def _test_alignement(self):
+        # Enregistre d'abord les valeurs courantes pour que le test les utilise
+        self._sauvegarder_impression(silencieux=True)
+        pdf_dir = os.path.join(APP_DIR, "bons_pdf")
+        os.makedirs(pdf_dir, exist_ok=True)
+        chemin = os.path.join(pdf_dir, "test_alignement.pdf")
+        try:
+            impression.generer_test_alignement(chemin)
+        except Exception as e:
+            messagebox.showerror("Test", f"Échec : {e}", parent=self)
+            return
+        _open_file(chemin)
+
+    def _sauvegarder_impression(self, silencieux=False):
         db.set_parametre("bon_sans_identite",
                          "1" if self.sans_identite_var.get() else "0")
         db.set_parametre("impression_mode", self.impression_mode_var.get())
@@ -1893,8 +2199,26 @@ class ParametresWindow(tk.Toplevel):
             except ValueError:
                 v = "0"
             db.set_parametre(cle, v)
-        messagebox.showinfo("Enregistré",
-            "Paramètres d'impression enregistrés.", parent=self)
+        # Géométrie papier
+        try:
+            db.set_parametre("impr_y1", str(float(self.impr_y1_var.get())))
+        except ValueError:
+            db.set_parametre("impr_y1", "79")
+        try:
+            db.set_parametre("impr_pas", str(float(self.impr_pas_var.get())))
+        except ValueError:
+            db.set_parametre("impr_pas", "5.15")
+        # Décalages verticaux par catégorie
+        if hasattr(self, "_dy_values"):
+            self._dy_values[self._dy_cat_current] = self.dy_val_var.get()
+            for slug, val in self._dy_values.items():
+                try:
+                    db.set_parametre(f"impr_dy_{slug}", str(float(val)))
+                except (ValueError, TypeError):
+                    db.set_parametre(f"impr_dy_{slug}", "0")
+        if not silencieux:
+            messagebox.showinfo("Enregistré",
+                "Paramètres d'impression enregistrés.", parent=self)
 
     def _build_maj(self, parent, params):
         """Onglet de configuration et de vérification des mises à jour."""
@@ -2928,6 +3252,1116 @@ class CompteTransactionForm(tk.Toplevel):
 # ─────────────────────────────────────────────
 # HISTORIQUE
 # ─────────────────────────────────────────────
+class HygieneWindow(tk.Toplevel):
+    """Cantine hygiène mensuelle (corporelle + cellule), entièrement modifiable."""
+    def __init__(self, master):
+        super().__init__(master)
+        self.title("Cantine hygiène du mois")
+        self.configure(bg=DARK_BG)
+        self.geometry("880x660")
+        self._center()
+        self._build()
+
+    def _center(self):
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()-self.winfo_width())//2
+        y = (self.winfo_screenheight()-self.winfo_height())//2
+        self.geometry(f"+{x}+{y}")
+
+    def _build(self):
+        bar = tk.Frame(self, bg=HEADER_BG, height=48); bar.pack(fill="x"); bar.pack_propagate(False)
+        tk.Label(bar, text="🧼  Cantine hygiène du mois",
+                 font=("Helvetica",13,"bold"), bg=HEADER_BG, fg="white").pack(side="left", padx=14)
+        tk.Button(bar, text="✕ Fermer", command=self.destroy,
+                  font=("Helvetica",9), bg=DANGER, fg="white", bd=0,
+                  cursor="hand2", pady=4, padx=10).pack(side="right", padx=10)
+
+        par = tk.Frame(self, bg=PANEL_BG); par.pack(fill="x")
+        tk.Label(par, text="Nombre de personnes :", font=("Helvetica",10),
+                 bg=PANEL_BG, fg=TEXT).pack(side="left", padx=(12,4), pady=8)
+        self.pers_var = tk.StringVar(value="2")
+        sp = tk.Spinbox(par, from_=1, to=10, textvariable=self.pers_var, width=5,
+                   font=("Helvetica",10), bg=CARD_BG, fg=TEXT, bd=0,
+                   buttonbackground=CARD_BG, insertbackground=TEXT,
+                   command=self._load)
+        sp.pack(side="left", ipady=2)
+        self.pers_var.trace_add("write", lambda *_: self._load())
+        tk.Label(par, text="  (corporelle × personnes, cellule = fixe/mois)",
+                 font=("Helvetica",8), bg=PANEL_BG, fg=TEXT_MUTED).pack(side="left")
+
+        # Barre modif
+        act = tk.Frame(self, bg=PANEL_BG); act.pack(fill="x")
+        tk.Button(act, text="✏️ Modifier quantité", command=self._modifier,
+                  font=("Helvetica",9), bg=ACCENT, fg="white", bd=0,
+                  cursor="hand2", pady=5, padx=10).pack(side="left", padx=6, pady=5)
+        tk.Button(act, text="❌ Supprimer", command=self._supprimer,
+                  font=("Helvetica",9), bg="#b45309", fg="white", bd=0,
+                  cursor="hand2", pady=5, padx=10).pack(side="left", padx=4, pady=5)
+        tk.Button(act, text="➕ Ajouter un produit", command=self._ajouter,
+                  font=("Helvetica",9), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=5, padx=10).pack(side="left", padx=4, pady=5)
+
+        cols = ("code","qte1","qte","prix","total")
+        self.tree = ttk.Treeview(self, columns=cols, show="tree headings", height=15)
+        self.tree.heading("#0", text="Groupe / Produit")
+        self.tree.heading("code", text="Code")
+        self.tree.heading("qte1", text="Qté/pers")
+        self.tree.heading("qte", text="Qté totale")
+        self.tree.heading("prix", text="P.U.")
+        self.tree.heading("total", text="Total")
+        self.tree.column("#0", width=330)
+        self.tree.column("code", width=70, anchor="center")
+        self.tree.column("qte1", width=70, anchor="center")
+        self.tree.column("qte", width=80, anchor="center")
+        self.tree.column("prix", width=80, anchor="center")
+        self.tree.column("total", width=90, anchor="center")
+        sb = ttk.Scrollbar(self, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.tree.pack(fill="both", expand=True, padx=8, pady=(8,4))
+
+        s = ttk.Style(); s.theme_use("clam")
+        s.configure("Treeview", background=CARD_BG, foreground=TEXT,
+                    fieldbackground=CARD_BG, rowheight=24, font=("Helvetica",9))
+        s.configure("Treeview.Heading", background=HEADER_BG, foreground="white",
+                    font=("Helvetica",9,"bold"))
+
+        bbar = tk.Frame(self, bg=PANEL_BG); bbar.pack(fill="x")
+        self.total_lbl = tk.Label(bbar, text="", bg=PANEL_BG, fg=GOLD,
+                                  font=("Helvetica",11,"bold"))
+        self.total_lbl.pack(side="left", padx=14, pady=8)
+        tk.Button(bbar, text="📦  Ajouter à la réserve", command=self._vers_reserve,
+                  font=("Helvetica",9,"bold"), bg="#0e7490", fg="white", bd=0,
+                  cursor="hand2", pady=6, padx=12).pack(side="right", padx=8, pady=6)
+        tk.Button(bbar, text="📄  Exporter PDF", command=self._exporter_pdf,
+                  font=("Helvetica",9), bg="#7c3aed", fg="white", bd=0,
+                  cursor="hand2", pady=6, padx=12).pack(side="right", padx=4, pady=6)
+
+        self._load()
+
+    def _nb_pers(self):
+        try: return max(1, int(self.pers_var.get()))
+        except ValueError: return 1
+
+    def _lignes_calculees(self):
+        """Retourne la liste avec quantités calculées selon le groupe."""
+        nb = self._nb_pers()
+        out = []
+        for h in db.get_hygiene_liste():
+            mult = nb if h["groupe"] == "corporelle" else 1
+            qte = h["qte_par_pers"] * mult
+            out.append({**h, "qte": qte, "total": h["prix"]*qte})
+        return out
+
+    def _load(self):
+        self.tree.delete(*self.tree.get_children())
+        lignes = self._lignes_calculees()
+        total = 0.0
+        for grp, titre in [("corporelle","🧼 Hygiène corporelle (× personnes)"),
+                           ("cellule","🧹 Hygiène de la cellule (fixe)")]:
+            items = [l for l in lignes if l["groupe"] == grp]
+            if not items: continue
+            st = sum(l["total"] for l in items)
+            total += st
+            g = self.tree.insert("", "end", open=True, text=titre,
+                values=("","","","", f"{st:.2f} €"))
+            for l in items:
+                self.tree.insert(g, "end", iid=l["id"], text=f"   {l['nom']}",
+                    values=(l["id"], l["qte_par_pers"], l["qte"],
+                            f"{l['prix']:.2f} €", f"{l['total']:.2f} €"))
+        self.total_lbl.config(
+            text=f"Total : {total:.2f} €   ({self._nb_pers()} pers. / mois)")
+
+    def _sel_produit(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showinfo("Sélection",
+                "Sélectionnez d'abord un produit.", parent=self); return None
+        pid = sel[0]
+        # ignorer les nœuds de groupe (pas d'iid produit)
+        if not self.tree.item(pid, "values") or not self.tree.item(pid,"values")[0]:
+            messagebox.showinfo("Sélection",
+                "Sélectionnez un produit, pas un titre de groupe.", parent=self)
+            return None
+        return pid
+
+    def _modifier(self):
+        pid = self._sel_produit()
+        if not pid: return
+        nom = self.tree.item(pid, "text").strip()
+        actuelle = self.tree.item(pid, "values")[1]
+        rep = simpledialog.askstring("Modifier",
+            f"Quantité par personne pour :\n{nom}\n(0 pour supprimer)",
+            initialvalue=str(actuelle), parent=self)
+        if rep is None: return
+        try: q = int(float(rep.strip().replace(",", ".")))
+        except ValueError:
+            messagebox.showwarning("Invalide","Entrez un entier.",parent=self); return
+        db.hygiene_definir_qte(pid, q)
+        self._load()
+
+    def _supprimer(self):
+        pid = self._sel_produit()
+        if not pid: return
+        nom = self.tree.item(pid, "text").strip()
+        if messagebox.askyesno("Supprimer",
+                f"Retirer « {nom} » de la liste hygiène ?", parent=self):
+            db.hygiene_supprimer(pid)
+            self._load()
+
+    def _ajouter(self):
+        AjoutHygieneDialog(self, self._load)
+
+    def _vers_reserve(self):
+        lignes = self._lignes_calculees()
+        articles = [{"id":l["id"], "nom":l["nom"], "categorie":l["categorie"],
+                     "prix":l["prix"], "qte":l["qte"]} for l in lignes]
+        db.ajouter_a_reserve(articles)
+        messagebox.showinfo("Réserve",
+            f"{len(articles)} article(s) hygiène ajouté(s) à la réserve.",
+            parent=self)
+
+    def _exporter_pdf(self):
+        lignes = self._lignes_calculees()
+        nom = f"hygiene_{self._nb_pers()}pers_mois.pdf"
+        chemin = filedialog.asksaveasfilename(
+            parent=self, title="Exporter la liste hygiène",
+            defaultextension=".pdf", initialfile=nom,
+            filetypes=[("PDF", "*.pdf")])
+        if not chemin: return
+        try:
+            impression.generer_liste_hygiene_pdf(lignes, self._nb_pers(), chemin)
+        except Exception as e:
+            messagebox.showerror("PDF", f"Échec : {e}", parent=self); return
+        _open_file(chemin)
+
+
+class AjoutHygieneDialog(tk.Toplevel):
+    """Ajoute un produit du catalogue à la liste hygiène."""
+    def __init__(self, master, callback):
+        super().__init__(master)
+        self.callback = callback
+        self.title("Ajouter un produit")
+        self.configure(bg=DARK_BG)
+        self.geometry("560x480")
+        self.grab_set()
+        self.produits = db.get_produits(actif_only=True)
+        self._build()
+
+    def _build(self):
+        tk.Label(self, text="Rechercher un produit (code ou nom) :",
+                 font=("Helvetica",10), bg=DARK_BG, fg=TEXT).pack(anchor="w", padx=14, pady=(12,4))
+        self.rech_var = tk.StringVar()
+        e = tk.Entry(self, textvariable=self.rech_var, font=("Helvetica",10),
+                 bg=CARD_BG, fg=TEXT, insertbackground=TEXT, bd=0, relief="flat",
+                 highlightthickness=1, highlightbackground=BORDER, highlightcolor=ACCENT)
+        e.pack(fill="x", padx=14, ipady=5)
+        self.rech_var.trace_add("write", lambda *_: self._filtrer())
+
+        self.lst = ttk.Treeview(self, columns=("code","cat","prix"), show="headings", height=12)
+        for c,t,w in [("code","Code",70),("cat","Catégorie",120),("prix","Prix",70)]:
+            self.lst.heading(c, text=t); self.lst.column(c, width=w, anchor="center")
+        self.lst.heading("#0", text=""); self.lst["show"]="tree headings"
+        self.lst.heading("#0", text="Produit"); self.lst.column("#0", width=260)
+        self.lst.pack(fill="both", expand=True, padx=14, pady=6)
+
+        opt = tk.Frame(self, bg=DARK_BG); opt.pack(fill="x", padx=14)
+        tk.Label(opt, text="Groupe :", bg=DARK_BG, fg=TEXT_MUTED,
+                 font=("Helvetica",9)).pack(side="left")
+        self.grp_var = tk.StringVar(value="corporelle")
+        ttk.Combobox(opt, textvariable=self.grp_var, values=["corporelle","cellule"],
+                     state="readonly", width=12).pack(side="left", padx=6)
+        tk.Label(opt, text="  Qté/pers :", bg=DARK_BG, fg=TEXT_MUTED,
+                 font=("Helvetica",9)).pack(side="left")
+        self.qte_var = tk.StringVar(value="1")
+        tk.Spinbox(opt, from_=1, to=30, textvariable=self.qte_var, width=5,
+                   bg=CARD_BG, fg=TEXT, bd=0, insertbackground=TEXT).pack(side="left", padx=4)
+
+        bb = tk.Frame(self, bg=PANEL_BG); bb.pack(fill="x")
+        tk.Button(bb, text="✓ Ajouter", command=self._ajouter,
+                  font=("Helvetica",10,"bold"), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=7, padx=14).pack(side="right", padx=8, pady=8)
+        tk.Button(bb, text="Fermer", command=self.destroy,
+                  font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
+                  cursor="hand2", pady=7, padx=12).pack(side="right", pady=8)
+
+        s = ttk.Style(); s.theme_use("clam")
+        s.configure("Treeview", background=CARD_BG, foreground=TEXT,
+                    fieldbackground=CARD_BG, rowheight=22, font=("Helvetica",9))
+        self._filtrer()
+
+    def _filtrer(self):
+        f = self.rech_var.get().lower().strip()
+        self.lst.delete(*self.lst.get_children())
+        n = 0
+        for p in self.produits:
+            if n >= 200: break
+            if f and f not in p[0].lower() and f not in p[1].lower(): continue
+            self.lst.insert("", "end", iid=p[0], text=p[1],
+                values=(p[0], p[2], f"{p[3]:.2f} €"))
+            n += 1
+
+    def _ajouter(self):
+        sel = self.lst.selection()
+        if not sel:
+            messagebox.showinfo("Sélection","Choisissez un produit.",parent=self); return
+        try: q = int(self.qte_var.get())
+        except ValueError: q = 1
+        db.hygiene_ajouter(sel[0], self.grp_var.get(), q)
+        if self.callback: self.callback()
+        messagebox.showinfo("Ajouté",
+            f"« {self.lst.item(sel[0],'text')} » ajouté à la liste hygiène.",
+            parent=self)
+
+
+class RationWindow(tk.Toplevel):
+    """Liste de provisions équilibrée « sans recette » : X personnes sur N jours."""
+    def __init__(self, master):
+        super().__init__(master)
+        self.title("Ration équilibrée (sans recette)")
+        self.configure(bg=DARK_BG)
+        self.geometry("820x620")
+        self._center()
+        self.dernier_resultat = None
+        self._build()
+
+    def _center(self):
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()-self.winfo_width())//2
+        y = (self.winfo_screenheight()-self.winfo_height())//2
+        self.geometry(f"+{x}+{y}")
+
+    def _build(self):
+        bar = tk.Frame(self, bg=HEADER_BG, height=48); bar.pack(fill="x"); bar.pack_propagate(False)
+        tk.Label(bar, text="🥗  Ration équilibrée (sans recette)",
+                 font=("Helvetica",13,"bold"), bg=HEADER_BG, fg="white").pack(side="left", padx=14)
+        tk.Button(bar, text="✕ Fermer", command=self.destroy,
+                  font=("Helvetica",9), bg=DANGER, fg="white", bd=0,
+                  cursor="hand2", pady=4, padx=10).pack(side="right", padx=10)
+
+        # Paramètres
+        par = tk.Frame(self, bg=PANEL_BG); par.pack(fill="x")
+        tk.Label(par, text="Nombre de personnes :", font=("Helvetica",10),
+                 bg=PANEL_BG, fg=TEXT).pack(side="left", padx=(12,4), pady=8)
+        self.pers_var = tk.StringVar(value="2")
+        tk.Spinbox(par, from_=1, to=20, textvariable=self.pers_var, width=5,
+                   font=("Helvetica",10), bg=CARD_BG, fg=TEXT, bd=0,
+                   buttonbackground=CARD_BG, insertbackground=TEXT).pack(side="left", ipady=2)
+        tk.Label(par, text="   Nombre de jours :", font=("Helvetica",10),
+                 bg=PANEL_BG, fg=TEXT).pack(side="left", padx=(12,4))
+        self.jours_var = tk.StringVar(value="15")
+        tk.Spinbox(par, from_=1, to=60, textvariable=self.jours_var, width=5,
+                   font=("Helvetica",10), bg=CARD_BG, fg=TEXT, bd=0,
+                   buttonbackground=CARD_BG, insertbackground=TEXT).pack(side="left", ipady=2)
+        tk.Button(par, text="🧮  Calculer", command=self._calculer,
+                  font=("Helvetica",10,"bold"), bg=ACCENT, fg="white", bd=0,
+                  cursor="hand2", pady=6, padx=14).pack(side="left", padx=12, pady=6)
+
+        cols = ("code","qte","prix","total")
+        self.tree = ttk.Treeview(self, columns=cols, show="tree headings", height=16)
+        self.tree.heading("#0", text="Groupe / Produit")
+        self.tree.heading("code", text="Code")
+        self.tree.heading("qte", text="Qté")
+        self.tree.heading("prix", text="P.U.")
+        self.tree.heading("total", text="Total")
+        self.tree.column("#0", width=380)
+        self.tree.column("code", width=80, anchor="center")
+        self.tree.column("qte", width=60, anchor="center")
+        self.tree.column("prix", width=90, anchor="center")
+        self.tree.column("total", width=100, anchor="center")
+        sb = ttk.Scrollbar(self, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.tree.pack(fill="both", expand=True, padx=8, pady=(8,4))
+        self.tree.tag_configure("depasse", foreground="#fca5a5")
+
+        s = ttk.Style(); s.theme_use("clam")
+        s.configure("Treeview", background=CARD_BG, foreground=TEXT,
+                    fieldbackground=CARD_BG, rowheight=24, font=("Helvetica",9))
+        s.configure("Treeview.Heading", background=HEADER_BG, foreground="white",
+                    font=("Helvetica",9,"bold"))
+
+        bbar = tk.Frame(self, bg=PANEL_BG); bbar.pack(fill="x")
+        self.total_lbl = tk.Label(bbar, text="", bg=PANEL_BG, fg=GOLD,
+                                  font=("Helvetica",11,"bold"))
+        self.total_lbl.pack(side="left", padx=14, pady=8)
+        tk.Button(bbar, text="📦  Ajouter à la réserve", command=self._vers_reserve,
+                  font=("Helvetica",9,"bold"), bg="#0e7490", fg="white", bd=0,
+                  cursor="hand2", pady=6, padx=12).pack(side="right", padx=8, pady=6)
+        tk.Button(bbar, text="📄  Exporter en PDF", command=self._exporter_pdf,
+                  font=("Helvetica",9), bg="#7c3aed", fg="white", bd=0,
+                  cursor="hand2", pady=6, padx=12).pack(side="right", padx=4, pady=6)
+
+        self._calculer()
+
+    def _calculer(self):
+        try:
+            nb_p = int(self.pers_var.get()); nb_j = int(self.jours_var.get())
+        except ValueError:
+            messagebox.showwarning("Valeurs", "Entrez des nombres valides.", parent=self)
+            return
+        produits = db.get_produits(actif_only=True)
+        r = ration.calculer_ration(produits, nb_p, nb_j)
+        self.dernier_resultat = r
+        self.tree.delete(*self.tree.get_children())
+        # Grouper
+        par_groupe = {}
+        for l in r["lignes"]:
+            par_groupe.setdefault(l["groupe"], []).append(l)
+        for groupe, lignes in par_groupe.items():
+            sous_total = sum(l["total"] for l in lignes)
+            g_node = self.tree.insert("", "end", open=True,
+                text=f"▸ {groupe}", values=("","","", f"{sous_total:.2f} €"))
+            for l in lignes:
+                tag = "depasse" if l["depasse"] else ""
+                self.tree.insert(g_node, "end", text=f"   {l['nom']}",
+                    values=(l["code"], l["qte"], f"{l['prix']:.2f} €",
+                            f"{l['total']:.2f} €"), tags=(tag,))
+        av = f"   ·   ⚠️ {len(r['avertissements'])} plafond(s)" if r["avertissements"] else ""
+        self.total_lbl.config(text=f"Total : {r['total']:.2f} €   "
+                              f"({nb_p} pers. × {nb_j} j){av}")
+
+    def _vers_reserve(self):
+        if not self.dernier_resultat:
+            return
+        articles = [{"id":l["code"], "nom":l["nom"], "categorie":l["categorie"],
+                     "prix":l["prix"], "qte":l["qte"]}
+                    for l in self.dernier_resultat["lignes"]]
+        db.ajouter_a_reserve(articles)
+        messagebox.showinfo("Réserve",
+            f"{len(articles)} article(s) ajouté(s) à la réserve.\n\n"
+            "Vous pouvez maintenant les répartir par dette ou les gérer "
+            "dans « 📦 Réserve ».", parent=self)
+
+    def _exporter_pdf(self):
+        if not self.dernier_resultat:
+            return
+        from datetime import datetime as _dt
+        nom = f"ration_{self.pers_var.get()}pers_{self.jours_var.get()}j.pdf"
+        chemin = filedialog.asksaveasfilename(
+            parent=self, title="Exporter la ration en PDF",
+            defaultextension=".pdf", initialfile=nom,
+            filetypes=[("PDF", "*.pdf")])
+        if not chemin:
+            return
+        try:
+            impression.generer_liste_ration_pdf(
+                self.dernier_resultat,
+                int(self.pers_var.get()), int(self.jours_var.get()), chemin)
+        except Exception as e:
+            messagebox.showerror("PDF", f"Échec : {e}", parent=self)
+            return
+        _open_file(chemin)
+
+
+class ReserveWindow(tk.Toplevel):
+    """Gestion de la réserve de cantine (stock persistant pour la répartition)."""
+    def __init__(self, master):
+        super().__init__(master)
+        self.title("Réserve de cantine")
+        self.configure(bg=DARK_BG)
+        self.geometry("820x580")
+        self._center()
+        self._build()
+        self._load()
+
+    def _center(self):
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()-self.winfo_width())//2
+        y = (self.winfo_screenheight()-self.winfo_height())//2
+        self.geometry(f"+{x}+{y}")
+
+    def _build(self):
+        bar = tk.Frame(self, bg=HEADER_BG, height=48); bar.pack(fill="x"); bar.pack_propagate(False)
+        tk.Label(bar, text="📦  Réserve de cantine",
+                 font=("Helvetica",13,"bold"), bg=HEADER_BG, fg="white").pack(side="left", padx=14)
+        tk.Button(bar, text="✕ Fermer", command=self.destroy,
+                  font=("Helvetica",9), bg=DANGER, fg="white", bd=0,
+                  cursor="hand2", pady=4, padx=10).pack(side="right", padx=10)
+
+        info = tk.Frame(self, bg=PANEL_BG); info.pack(fill="x")
+        tk.Label(info, text="Stock de cantine conservé d'une répartition à l'autre. "
+                 "Importez vos listes ici : les quantités s'additionnent. "
+                 "Lors d'une répartition « depuis la réserve », les articles "
+                 "distribués en sont automatiquement déduits.",
+                 font=("Helvetica",8), bg=PANEL_BG, fg=TEXT_MUTED,
+                 wraplength=780, justify="left").pack(anchor="w", padx=12, pady=6)
+
+        # Barre d'actions
+        act = tk.Frame(self, bg=PANEL_BG); act.pack(fill="x")
+        tk.Button(act, text="📥  Importer une liste (ajouter au stock)",
+                  command=self._importer, font=("Helvetica",9,"bold"),
+                  bg="#0e7490", fg="white", bd=0, cursor="hand2",
+                  pady=6, padx=12).pack(side="left", padx=8, pady=6)
+        tk.Button(act, text="✏️  Modifier la quantité", command=self._modifier_qte,
+                  font=("Helvetica",9), bg=ACCENT, fg="white", bd=0,
+                  cursor="hand2", pady=6, padx=12).pack(side="left", padx=4, pady=6)
+        tk.Button(act, text="❌  Supprimer l'article", command=self._supprimer,
+                  font=("Helvetica",9), bg="#b45309", fg="white", bd=0,
+                  cursor="hand2", pady=6, padx=12).pack(side="left", padx=4, pady=6)
+        tk.Button(act, text="🗑  Vider la réserve", command=self._vider,
+                  font=("Helvetica",9), bg=DANGER, fg="white", bd=0,
+                  cursor="hand2", pady=6, padx=12).pack(side="right", padx=8, pady=6)
+
+        cols = ("code","cat","prix","qte","valeur")
+        self.tree = ttk.Treeview(self, columns=cols, show="headings", height=16)
+        for col,txt,w,anc in [("code","Code",80,"center"),("cat","Catégorie",130,"center"),
+                              ("prix","Prix unit.",90,"center"),("qte","Quantité",80,"center"),
+                              ("valeur","Valeur",100,"center")]:
+            self.tree.heading(col, text=txt); self.tree.column(col, width=w, anchor=anc)
+        # colonne nom via #0 ? on ajoute une colonne nom en tête
+        self.tree.heading("#0", text="")
+        self.tree["show"] = "tree headings"
+        self.tree.heading("#0", text="Produit"); self.tree.column("#0", width=300)
+        sb = ttk.Scrollbar(self, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.tree.pack(fill="both", expand=True, padx=8, pady=(6,4))
+
+        s = ttk.Style(); s.theme_use("clam")
+        s.configure("Treeview", background=CARD_BG, foreground=TEXT,
+                    fieldbackground=CARD_BG, rowheight=24, font=("Helvetica",9))
+        s.configure("Treeview.Heading", background=HEADER_BG, foreground="white",
+                    font=("Helvetica",9,"bold"))
+
+        bbar = tk.Frame(self, bg=PANEL_BG); bbar.pack(fill="x")
+        self.total_lbl = tk.Label(bbar, text="", bg=PANEL_BG, fg=GOLD,
+                                  font=("Helvetica",11,"bold"))
+        self.total_lbl.pack(side="left", padx=14, pady=8)
+
+    def _load(self):
+        self.tree.delete(*self.tree.get_children())
+        reserve = db.get_reserve()
+        for a in sorted(reserve, key=lambda x: (x["categorie"], x["id"])):
+            self.tree.insert("", "end", iid=a["id"], text=a["nom"],
+                values=(a["id"], a["categorie"], f"{a['prix']:.2f} €",
+                        a["qte"], f"{a['prix']*a['qte']:.2f} €"))
+        total = db.reserve_total()
+        n = len(reserve)
+        self.total_lbl.config(
+            text=f"Total réserve : {total:.2f} €   ·   {n} produit(s) différent(s)")
+
+    def _modifier_qte(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showinfo("Sélection",
+                "Sélectionnez d'abord un article dans la liste.", parent=self)
+            return
+        pid = sel[0]
+        vals = self.tree.item(pid, "values")
+        nom = self.tree.item(pid, "text")
+        qte_actuelle = vals[3] if len(vals) > 3 else ""
+        rep = simpledialog.askstring("Modifier la quantité",
+            f"Nouvelle quantité pour :\n{nom}\n\n(0 pour supprimer l'article)",
+            initialvalue=str(qte_actuelle), parent=self)
+        if rep is None:
+            return
+        try:
+            q = int(float(rep.strip().replace(",", ".")))
+        except ValueError:
+            messagebox.showwarning("Quantité invalide",
+                "Entrez un nombre entier.", parent=self)
+            return
+        db.modifier_qte_reserve(pid, q)
+        self._load()
+
+    def _supprimer(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showinfo("Sélection",
+                "Sélectionnez d'abord un article dans la liste.", parent=self)
+            return
+        pid = sel[0]
+        nom = self.tree.item(pid, "text")
+        if messagebox.askyesno("Supprimer",
+                f"Retirer « {nom} » de la réserve ?", parent=self):
+            db.supprimer_de_reserve(pid)
+            self._load()
+
+    def _importer(self):
+        chemin = filedialog.askopenfilename(
+            parent=self, title="Importer une liste dans la réserve",
+            filetypes=[("Fichiers pris en charge", "*.xlsx *.xls *.csv *.txt"),
+                       ("Tous les fichiers", "*.*")])
+        if not chemin:
+            return
+        produits = db.get_produits(actif_only=False)
+        try:
+            res = import_liste.analyser_fichier(chemin, produits)
+        except Exception as e:
+            messagebox.showerror("Import", f"Impossible de lire le fichier :\n{e}",
+                                 parent=self)
+            return
+        articles = []
+        for pers in res["personnes"]:
+            for l in pers["lignes"]:
+                articles.append(l)
+        if not articles:
+            msg = "Aucun produit reconnu dans le fichier."
+            if res["erreurs"]:
+                msg += "\n\n" + "\n".join(res["erreurs"][:8])
+            messagebox.showwarning("Import", msg, parent=self)
+            return
+        db.ajouter_a_reserve(articles)
+        self._load()
+        msg = f"{len(articles)} ligne(s) ajoutée(s) à la réserve."
+        if res["erreurs"]:
+            msg += f"\n\n⚠️ {len(res['erreurs'])} produit(s) introuvable(s), ignoré(s)."
+        messagebox.showinfo("Réserve", msg, parent=self)
+
+    def _vider(self):
+        if messagebox.askyesno("Vider la réserve",
+                "Vider entièrement la réserve ? Cette action est définitive.",
+                parent=self):
+            db.vider_reserve()
+            self._load()
+
+
+class SourceRepartitionDialog(tk.Toplevel):
+    """Demande la source des articles à répartir : réserve ou catalogue."""
+    def __init__(self, master, total_reserve=0.0):
+        super().__init__(master)
+        self.resultat = None
+        self.total_reserve = total_reserve
+        self.title("Répartir les dettes")
+        self.configure(bg=DARK_BG)
+        self.resizable(False, False)
+        self.grab_set()
+        self._build()
+        self._center()
+        self.wait_window()
+
+    def _center(self):
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()-self.winfo_width())//2
+        y = (self.winfo_screenheight()-self.winfo_height())//2
+        self.geometry(f"+{x}+{y}")
+
+    def _build(self):
+        frm = tk.Frame(self, bg=DARK_BG, padx=28, pady=22); frm.pack()
+        tk.Label(frm, text="🎯  Répartir les articles par dette",
+                 font=("Helvetica",13,"bold"), bg=DARK_BG, fg=TEXT).pack(pady=(0,6))
+        tk.Label(frm, text="Où l'appli doit-elle piocher les articles à distribuer ?",
+                 font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED).pack(pady=(0,16))
+        libelle_res = f"📦  Ma réserve  ({self.total_reserve:.2f} € en stock)"
+        tk.Button(frm, text=libelle_res,
+                  command=lambda: self._choisir("reserve"),
+                  font=("Helvetica",10,"bold"), bg="#0e7490", fg="white", bd=0,
+                  cursor="hand2", pady=10, width=34).pack(pady=4)
+        tk.Button(frm, text="📋  Laisser l'appli choisir dans le catalogue",
+                  command=lambda: self._choisir("catalogue"),
+                  font=("Helvetica",10,"bold"), bg=ACCENT, fg="white", bd=0,
+                  cursor="hand2", pady=10, width=34).pack(pady=4)
+        tk.Button(frm, text="Annuler", command=self.destroy,
+                  font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
+                  cursor="hand2", pady=6, width=34).pack(pady=(10,0))
+
+    def _choisir(self, val):
+        self.resultat = val
+        self.destroy()
+
+
+class SaisieDettesDialog(tk.Toplevel):
+    """Saisie des personnes et des montants dus (tableau éditable)."""
+    def __init__(self, master):
+        super().__init__(master)
+        self.resultat = None
+        self.title("Qui doit combien ?")
+        self.configure(bg=DARK_BG)
+        self.geometry("440x460")
+        self.grab_set()
+        self.rows = []
+        self._build()
+        self._center()
+        self.wait_window()
+
+    def _center(self):
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()-self.winfo_width())//2
+        y = (self.winfo_screenheight()-self.winfo_height())//2
+        self.geometry(f"+{x}+{y}")
+
+    def _build(self):
+        bar = tk.Frame(self, bg=HEADER_BG, height=44); bar.pack(fill="x"); bar.pack_propagate(False)
+        tk.Label(bar, text="💰  Qui vous doit de l'argent ?",
+                 font=("Helvetica",12,"bold"), bg=HEADER_BG, fg="white").pack(side="left", padx=12)
+        tk.Label(self, text="Indiquez le nom de chaque personne et le montant "
+                 "qu'elle vous doit.", font=("Helvetica",8), bg=DARK_BG,
+                 fg=TEXT_MUTED, wraplength=400, justify="left").pack(anchor="w", padx=16, pady=(8,4))
+
+        # En-têtes
+        head = tk.Frame(self, bg=DARK_BG); head.pack(fill="x", padx=16)
+        tk.Label(head, text="Nom", width=22, anchor="w", font=("Helvetica",9,"bold"),
+                 bg=DARK_BG, fg=TEXT_MUTED).pack(side="left")
+        tk.Label(head, text="Montant dû (€)", anchor="w", font=("Helvetica",9,"bold"),
+                 bg=DARK_BG, fg=TEXT_MUTED).pack(side="left")
+
+        self.rows_frm = tk.Frame(self, bg=DARK_BG); self.rows_frm.pack(fill="x", padx=16, pady=4)
+        for _ in range(4):
+            self._ajouter_ligne()
+
+        tk.Button(self, text="＋  Ajouter une personne", command=self._ajouter_ligne,
+                  font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
+                  cursor="hand2", pady=5).pack(padx=16, pady=(4,0), anchor="w")
+
+        bbar = tk.Frame(self, bg=PANEL_BG); bbar.pack(side="bottom", fill="x")
+        tk.Button(bbar, text="✓  Calculer la répartition", command=self._valider,
+                  font=("Helvetica",10,"bold"), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=8).pack(side="right", padx=8, pady=8)
+        tk.Button(bbar, text="Annuler", command=self.destroy,
+                  font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
+                  cursor="hand2", pady=8, padx=12).pack(side="right", pady=8)
+
+    def _ajouter_ligne(self):
+        row = tk.Frame(self.rows_frm, bg=DARK_BG); row.pack(fill="x", pady=2)
+        v_nom = tk.StringVar(); v_montant = tk.StringVar()
+        tk.Entry(row, textvariable=v_nom, width=22, font=("Helvetica",10),
+                 bg=CARD_BG, fg=TEXT, insertbackground=TEXT, bd=0, relief="flat",
+                 highlightthickness=1, highlightbackground=BORDER,
+                 highlightcolor=ACCENT).pack(side="left", ipady=4, padx=(0,8))
+        tk.Entry(row, textvariable=v_montant, width=12, font=("Helvetica",10),
+                 bg=CARD_BG, fg=TEXT, insertbackground=TEXT, bd=0, relief="flat",
+                 highlightthickness=1, highlightbackground=BORDER,
+                 highlightcolor=ACCENT).pack(side="left", ipady=4)
+        self.rows.append((v_nom, v_montant))
+
+    def _valider(self):
+        dettes = []
+        for v_nom, v_montant in self.rows:
+            nom = v_nom.get().strip()
+            mtxt = v_montant.get().strip().replace(",", ".").replace("€", "")
+            if not nom or not mtxt:
+                continue
+            try:
+                montant = float(mtxt)
+            except ValueError:
+                messagebox.showwarning("Montant invalide",
+                    f"Le montant de « {nom} » n'est pas un nombre.", parent=self)
+                return
+            if montant > 0:
+                dettes.append((nom, montant))
+        if not dettes:
+            messagebox.showwarning("Aucune dette",
+                "Indiquez au moins une personne et un montant.", parent=self)
+            return
+        self.resultat = dettes
+        self.destroy()
+
+
+class RepartitionWindow(tk.Toplevel):
+    """Prévisualisation de la répartition, avant création des bons-créance."""
+    def __init__(self, master, resultat, mode, user_info, user_type, sig_path):
+        super().__init__(master)
+        self.resultat  = resultat
+        self.mode      = mode
+        self.user_info = user_info
+        self.user_type = user_type
+        self.sig_path  = sig_path
+        self.produits  = db.get_produits(actif_only=False)
+        self.title("Répartition proposée")
+        self.configure(bg=DARK_BG)
+        self.geometry("960x640")
+        self._center()
+        self._build()
+
+    def _center(self):
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()-self.winfo_width())//2
+        y = (self.winfo_screenheight()-self.winfo_height())//2
+        self.geometry(f"+{x}+{y}")
+
+    def _build(self):
+        bar = tk.Frame(self, bg=HEADER_BG, height=48); bar.pack(fill="x"); bar.pack_propagate(False)
+        tk.Label(bar, text="🎯  Répartition proposée par l'application",
+                 font=("Helvetica",13,"bold"), bg=HEADER_BG, fg="white").pack(side="left", padx=14)
+        tk.Button(bar, text="✕ Fermer", command=self.destroy,
+                  font=("Helvetica",9), bg=DANGER, fg="white", bd=0,
+                  cursor="hand2", pady=4, padx=10).pack(side="right", padx=10)
+
+        cols = ("info","qte","prix","total")
+        self.tree = ttk.Treeview(self, columns=cols, show="tree headings", height=16)
+        self.tree.heading("#0", text="Personne / Catégorie / Article")
+        self.tree.heading("info", text="Code")
+        self.tree.heading("qte", text="Qté")
+        self.tree.heading("prix", text="P.U.")
+        self.tree.heading("total", text="Total")
+        self.tree.column("#0", width=420)
+        self.tree.column("info", width=90, anchor="center")
+        self.tree.column("qte", width=60, anchor="center")
+        self.tree.column("prix", width=90, anchor="center")
+        self.tree.column("total", width=100, anchor="center")
+        sb = ttk.Scrollbar(self, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.tree.pack(fill="both", expand=True, padx=8, pady=(8,4))
+
+        s = ttk.Style(); s.theme_use("clam")
+        s.configure("Treeview", background=CARD_BG, foreground=TEXT,
+                    fieldbackground=CARD_BG, rowheight=24, font=("Helvetica",9))
+        s.configure("Treeview.Heading", background=HEADER_BG, foreground="white",
+                    font=("Helvetica",9,"bold"))
+
+        for p in self.resultat["personnes"]:
+            ecart = p["ecart"]
+            signe = "pile" if abs(ecart) < 0.005 else (f"+{ecart:.2f}€" if ecart>0 else f"{ecart:.2f}€")
+            par_cat = {}
+            for l in p["lignes"]:
+                par_cat.setdefault(l["categorie"], []).append(l)
+            p_node = self.tree.insert("", "end", open=True,
+                text=f"👤 {p['nom']} — doit {p['cible']:.2f}€ → attribué "
+                     f"{p['atteint']:.2f}€ ({signe})")
+            for cat, lignes in par_cat.items():
+                c_node = self.tree.insert(p_node, "end", open=True,
+                    text=f"   📄 {cat}",
+                    values=("","","", f"{sum(l['total'] for l in lignes):.2f} €"))
+                for l in lignes:
+                    self.tree.insert(c_node, "end", text=f"      {l['nom']}",
+                        values=(l["id"], l["qte"], f"{l['prix']:.2f} €",
+                                f"{l['total']:.2f} €"))
+
+        # Reliquat (mode réserve)
+        if self.mode == "reserve" and self.resultat["reste"]:
+            r_node = self.tree.insert("", "end", open=False,
+                text=f"📦 Restera en réserve ({self.resultat['reste_total']:.2f}€)")
+            for l in self.resultat["reste"]:
+                self.tree.insert(r_node, "end", text=f"      {l['nom']}",
+                    values=(l["id"], l["qte"], f"{l['prix']:.2f} €",
+                            f"{l['total']:.2f} €"))
+
+        bbar = tk.Frame(self, bg=PANEL_BG); bbar.pack(fill="x")
+        total_du  = sum(p["cible"] for p in self.resultat["personnes"])
+        total_att = sum(p["atteint"] for p in self.resultat["personnes"])
+        tk.Label(bbar,
+            text=f"Total dû : {total_du:.2f} €   ·   distribué : {total_att:.2f} €",
+            bg=PANEL_BG, fg=GOLD, font=("Helvetica",10,"bold")).pack(side="left", padx=14, pady=8)
+        tk.Button(bbar, text="✓  Créer les bons (créances)", command=self._creer_bons,
+                  font=("Helvetica",10,"bold"), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=7, padx=14).pack(side="right", padx=8, pady=6)
+
+    def _creer_bons(self):
+        date_str = datetime.now().strftime("%d/%m/%Y")
+        date_creation = datetime.now()
+        ui = self.user_info
+        nb = 0
+        for p in self.resultat["personnes"]:
+            if not p["lignes"]:
+                continue
+            par_cat = {}
+            for l in p["lignes"]:
+                par_cat.setdefault(l["categorie"], []).append(l)
+            for cat, lignes_cat in par_cat.items():
+                total = sum(l["total"] for l in lignes_cat)
+                lignes_bon = [{"id":l["id"], "nom":l["nom"], "prix":l["prix"],
+                               "qte":l["qte"], "total":l["total"],
+                               "qte_max":0} for l in lignes_cat]
+                commande = {l["id"]: {} for l in lignes_cat}
+                infos = _infos_livraison_commande(commande, self.produits, cat,
+                                                  date_creation=date_creation)
+                jour_creance = ", ".join(j for j, _ in infos if j)
+                date_creance_val = infos[0][1].strftime("%d/%m/%Y")
+                db.sauvegarder_bon(
+                    cat, ui["nom"], ui["prenom"], ui["ecrou"], ui["batiment"],
+                    ui["cellule"], lignes_bon, total, date_str, self.user_type,
+                    est_creance=True, nom_creance=p["nom"],
+                    jour_creance=jour_creance, date_creance=date_creance_val)
+                nb += 1
+        _rafraichir_feed_calendrier()
+
+        # En mode réserve : le reliquat devient la nouvelle réserve
+        if self.mode == "reserve":
+            db.definir_reserve(self.resultat["reste"])
+            reste_txt = (f"\n\nRéserve restante : {self.resultat['reste_total']:.2f} € "
+                         "(conservée pour la prochaine fois).")
+        else:
+            reste_txt = ""
+
+        messagebox.showinfo("Répartition terminée",
+            f"{nb} bon(s)-créance créé(s).{reste_txt}\n\nRetrouvez-les dans "
+            "« 💰 Créances » et l'Historique, prêts à imprimer.", parent=self)
+        self.destroy()
+
+
+class ImportListeWindow(tk.Toplevel):
+    """Prévisualisation d'une liste de cantine importée, avant création des bons.
+    Regroupe par personne puis par catégorie (un bon = une catégorie)."""
+    def __init__(self, master, resultat, user_info, user_type, sig_path):
+        super().__init__(master)
+        self.master_app = master
+        self.resultat   = resultat
+        self.user_info  = user_info
+        self.user_type  = user_type
+        self.sig_path   = sig_path
+        self.produits   = db.get_produits(actif_only=False)
+        self.title("Importer une liste de cantine")
+        self.configure(bg=DARK_BG)
+        self.geometry("960x640")
+        self._center()
+        self._build()
+
+    def _center(self):
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()  - self.winfo_width())  // 2
+        y = (self.winfo_screenheight() - self.winfo_height()) // 2
+        self.geometry(f"+{x}+{y}")
+
+    def _build(self):
+        bar = tk.Frame(self, bg=HEADER_BG, height=48); bar.pack(fill="x"); bar.pack_propagate(False)
+        tk.Label(bar, text="📥  Aperçu de la liste importée",
+                 font=("Helvetica",13,"bold"), bg=HEADER_BG, fg="white").pack(side="left", padx=14)
+        tk.Button(bar, text="✕ Fermer", command=self.destroy,
+                  font=("Helvetica",9), bg=DANGER, fg="white", bd=0,
+                  cursor="hand2", pady=4, padx=10).pack(side="right", padx=10)
+
+        # Option créance globale
+        opt = tk.Frame(self, bg=PANEL_BG); opt.pack(fill="x")
+        self.creance_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(opt, text="💰  Marquer tous ces bons comme créances "
+                       "(dette — sans identité ni signature)",
+                       variable=self.creance_var,
+                       bg=PANEL_BG, fg=TEXT, activebackground=PANEL_BG,
+                       activeforeground=TEXT, selectcolor=CARD_BG,
+                       font=("Helvetica",9,"bold")).pack(side="left", padx=12, pady=8)
+
+        # Zone de liste (arbre personne > catégorie > articles)
+        cols = ("info","qte","prix","total")
+        self.tree = ttk.Treeview(self, columns=cols, show="tree headings", height=16)
+        self.tree.heading("#0", text="Personne / Catégorie / Article")
+        self.tree.heading("info", text="Code")
+        self.tree.heading("qte", text="Qté")
+        self.tree.heading("prix", text="P.U.")
+        self.tree.heading("total", text="Total")
+        self.tree.column("#0", width=420)
+        self.tree.column("info", width=90, anchor="center")
+        self.tree.column("qte", width=60, anchor="center")
+        self.tree.column("prix", width=90, anchor="center")
+        self.tree.column("total", width=100, anchor="center")
+        sb = ttk.Scrollbar(self, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.tree.pack(fill="both", expand=True, padx=8, pady=(8,4))
+
+        s = ttk.Style(); s.theme_use("clam")
+        s.configure("Treeview", background=CARD_BG, foreground=TEXT,
+                    fieldbackground=CARD_BG, rowheight=24, font=("Helvetica",9))
+        s.configure("Treeview.Heading", background=HEADER_BG, foreground="white",
+                    font=("Helvetica",9,"bold"))
+
+        total_general = 0.0
+        nb_bons = 0
+        for pers in self.resultat["personnes"]:
+            if not pers["lignes"]:
+                continue
+            nom_pers = pers["nom"] or "(pour vous)"
+            # Regrouper par catégorie
+            par_cat = {}
+            for l in pers["lignes"]:
+                par_cat.setdefault(l["categorie"], []).append(l)
+            tot_pers = sum(l["total"] for l in pers["lignes"])
+            total_general += tot_pers
+            p_node = self.tree.insert("", "end",
+                text=f"👤 {nom_pers}   ({len(par_cat)} bon(s) — {tot_pers:.2f} €)",
+                open=True)
+            for cat, lignes in par_cat.items():
+                nb_bons += 1
+                tot_cat = sum(l["total"] for l in lignes)
+                c_node = self.tree.insert(p_node, "end",
+                    text=f"   📄 {cat}", values=("", "", "", f"{tot_cat:.2f} €"), open=True)
+                for l in lignes:
+                    self.tree.insert(c_node, "end", text=f"      {l['nom']}",
+                        values=(l["id"], l["qte"], f"{l['prix']:.2f} €",
+                                f"{l['total']:.2f} €"))
+
+        # Bandeau erreurs / avertissements
+        msgs = []
+        if self.resultat["erreurs"]:
+            msgs.append(f"⚠️ {len(self.resultat['erreurs'])} produit(s) introuvable(s) "
+                        "— ignoré(s).")
+        if self.resultat["avertissements"]:
+            msgs.append(f"⚠️ {len(self.resultat['avertissements'])} dépassement(s) "
+                        "de quantité max.")
+        if msgs:
+            info = tk.Frame(self, bg="#78350f"); info.pack(fill="x")
+            tk.Label(info, text="   ".join(msgs) + "  (voir détail)",
+                     bg="#78350f", fg="#fef3c7", font=("Helvetica",8,"bold"),
+                     cursor="hand2").pack(side="left", padx=12, pady=4)
+            info.bind("<Button-1>", lambda e: self._voir_details())
+
+        # Barre du bas
+        bbar = tk.Frame(self, bg=PANEL_BG); bbar.pack(fill="x")
+        self.total_lbl = tk.Label(bbar,
+            text=f"Total : {total_general:.2f} €   ·   {nb_bons} bon(s) à créer",
+            bg=PANEL_BG, fg=GOLD, font=("Helvetica",10,"bold"))
+        self.total_lbl.pack(side="left", padx=14, pady=8)
+        tk.Button(bbar, text="✓  Créer les bons", command=self._creer_bons,
+                  font=("Helvetica",10,"bold"), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=7, padx=14).pack(side="right", padx=8, pady=6)
+
+    def _voir_details(self):
+        txt = ""
+        if self.resultat["erreurs"]:
+            txt += "Produits introuvables :\n" + "\n".join(
+                "• " + e for e in self.resultat["erreurs"]) + "\n\n"
+        if self.resultat["avertissements"]:
+            txt += "Dépassements de quantité :\n" + "\n".join(
+                "• " + a for a in self.resultat["avertissements"])
+        messagebox.showinfo("Détails", txt or "Aucun problème.", parent=self)
+
+    def _creer_bons(self):
+        est_creance = self.creance_var.get()
+        date_str = datetime.now().strftime("%d/%m/%Y")
+        date_creation = datetime.now()
+        ui = self.user_info
+        nb = 0
+        creance_touchee = False
+
+        for pers in self.resultat["personnes"]:
+            if not pers["lignes"]:
+                continue
+            nom_creance = pers["nom"] if (est_creance or pers["nom"]) else ""
+            # Une personne nommée dans le fichier => créance auto à ce nom
+            personne_creance = est_creance or bool(pers["nom"])
+
+            par_cat = {}
+            for l in pers["lignes"]:
+                par_cat.setdefault(l["categorie"], []).append(l)
+
+            for cat, lignes_cat in par_cat.items():
+                total = sum(l["total"] for l in lignes_cat)
+                lignes_bon = [{"id": l["id"], "nom": l["nom"], "prix": l["prix"],
+                               "qte": l["qte"], "total": l["total"],
+                               "qte_max": l["qte_max"]} for l in lignes_cat]
+                jour_creance = date_creance_val = ""
+                if personne_creance:
+                    commande = {l["id"]: {} for l in lignes_cat}
+                    infos = _infos_livraison_commande(commande, self.produits, cat,
+                                                      date_creation=date_creation)
+                    jour_creance = ", ".join(j for j, _ in infos if j)
+                    date_creance_val = infos[0][1].strftime("%d/%m/%Y")
+                    creance_touchee = True
+                db.sauvegarder_bon(
+                    cat, ui["nom"], ui["prenom"], ui["ecrou"], ui["batiment"],
+                    ui["cellule"], lignes_bon, total, date_str, self.user_type,
+                    est_creance=personne_creance,
+                    nom_creance=(pers["nom"] or ""),
+                    jour_creance=jour_creance, date_creance=date_creance_val)
+                nb += 1
+
+        if creance_touchee:
+            _rafraichir_feed_calendrier()
+
+        messagebox.showinfo("Import terminé",
+            f"{nb} bon(s) créé(s) et enregistré(s) dans l'historique.\n\n"
+            "Vous pouvez les imprimer depuis l'Historique ou « Tout imprimer ».",
+            parent=self)
+        self.destroy()
+
+
+class ArticleNonLivreDialog(tk.Toplevel):
+    """Coche les articles non livrés d'une créance : leur valeur reste due
+    (nouvelle créance active), le reste est considéré récupéré."""
+    def __init__(self, master, bon_id, lignes, nom_creance, callback):
+        super().__init__(master)
+        self.bon_id = bon_id
+        self.lignes = lignes
+        self.nom_creance = nom_creance
+        self.callback = callback
+        self.vars = []
+        self.title("Article(s) non livré(s)")
+        self.configure(bg=DARK_BG)
+        self.geometry("560x520")
+        self.grab_set()
+        self._build()
+        self._center()
+
+    def _center(self):
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()-self.winfo_width())//2
+        y = (self.winfo_screenheight()-self.winfo_height())//2
+        self.geometry(f"+{x}+{y}")
+
+    def _build(self):
+        bar = tk.Frame(self, bg=HEADER_BG, height=46); bar.pack(fill="x"); bar.pack_propagate(False)
+        tk.Label(bar, text="📦  Articles non livrés",
+                 font=("Helvetica",12,"bold"), bg=HEADER_BG, fg="white").pack(side="left", padx=12)
+        tk.Label(self,
+            text=f"Créance de « {self.nom_creance} ».\nCochez le(s) article(s) qui "
+                 "ne sont PAS arrivés : leur valeur restera en créance pour cette "
+                 "personne, le reste sera marqué récupéré.",
+            font=("Helvetica",9), bg=DARK_BG, fg=TEXT_MUTED,
+            wraplength=520, justify="left").pack(anchor="w", padx=14, pady=(8,6))
+
+        cadre = tk.Frame(self, bg=DARK_BG); cadre.pack(fill="both", expand=True, padx=14)
+        canvas = tk.Canvas(cadre, bg=DARK_BG, highlightthickness=0)
+        sb = ttk.Scrollbar(cadre, orient="vertical", command=canvas.yview)
+        inner = tk.Frame(canvas, bg=DARK_BG)
+        canvas.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y"); canvas.pack(side="left", fill="both", expand=True)
+        win = canvas.create_window((0,0), window=inner, anchor="nw")
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(win, width=e.width))
+
+        for l in self.lignes:
+            # l = (id, bon_id, produit_id, designation, prix, qte, total)
+            pid, desig, prix, qte, total_l = l[2], l[3], l[4], l[5], l[6]
+            v = tk.BooleanVar(value=False)
+            self.vars.append((v, l))
+            row = tk.Frame(inner, bg=CARD_BG); row.pack(fill="x", pady=2)
+            tk.Checkbutton(row, variable=v, bg=CARD_BG, activebackground=CARD_BG,
+                           selectcolor=DARK_BG).pack(side="left", padx=4)
+            tk.Label(row, text=f"{pid}  {desig}", font=("Helvetica",9),
+                     bg=CARD_BG, fg=TEXT, anchor="w").pack(side="left", fill="x",
+                     expand=True, padx=4, pady=4)
+            tk.Label(row, text=f"x{qte}   {total_l:.2f} €", font=("Helvetica",9),
+                     bg=CARD_BG, fg=GOLD).pack(side="right", padx=8)
+
+        bbar = tk.Frame(self, bg=PANEL_BG); bbar.pack(fill="x")
+        tk.Button(bbar, text="✓  Valider", command=self._valider,
+                  font=("Helvetica",10,"bold"), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=8, padx=16).pack(side="right", padx=8, pady=8)
+        tk.Button(bbar, text="Annuler", command=self.destroy,
+                  font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
+                  cursor="hand2", pady=8, padx=12).pack(side="right", pady=8)
+
+    def _valider(self):
+        non_livres = [l for v, l in self.vars if v.get()]
+        if not non_livres:
+            messagebox.showinfo("Aucun article",
+                "Cochez au moins un article non livré, ou cliquez sur Annuler.",
+                parent=self)
+            return
+
+        # Récupérer les infos de la créance d'origine
+        info_bon = db.get_bon_complet(self.bon_id)
+        if info_bon is None:
+            messagebox.showerror("Erreur", "Créance introuvable.", parent=self)
+            return
+
+        # Nouvelle créance active avec seulement les articles non livrés
+        lignes_bon = [{"id": l[2], "nom": l[3], "prix": l[4],
+                       "qte": l[5], "total": l[6], "qte_max": 0}
+                      for l in non_livres]
+        total_restant = sum(l[6] for l in non_livres)
+
+        db.sauvegarder_bon(
+            info_bon["categorie"], info_bon["nom"], info_bon["prenom"],
+            info_bon["ecrou"], info_bon["batiment"], info_bon["cellule"],
+            lignes_bon, total_restant, info_bon["date"], info_bon["user_type"],
+            est_creance=True, nom_creance=info_bon["nom_creance"],
+            jour_creance=info_bon["jour_creance"], date_creance=info_bon["date_creance"])
+
+        # L'originale : partie livrée payée -> marquée récupérée
+        db.marquer_creance_soldee(self.bon_id, True)
+
+        messagebox.showinfo("Enregistré",
+            f"{len(non_livres)} article(s) non livré(s) : {total_restant:.2f} € "
+            f"restent en créance pour « {info_bon['nom_creance']} ».\n\n"
+            "L'ancienne créance a été marquée récupérée (partie livrée).",
+            parent=self)
+        self.destroy()
+        if self.callback:
+            self.callback()
+
+
 class CreancesWindow(tk.Toplevel):
     """Liste des bons marqués comme créance (personnes qui doivent de l'argent)."""
     def __init__(self, master):
@@ -2970,9 +4404,12 @@ class CreancesWindow(tk.Toplevel):
         tk.Button(fbar, text="📆  Calendrier (.ics)", command=self._exporter_ics,
                   font=("Helvetica",9), bg="#0e7490", fg="white", bd=0,
                   cursor="hand2", pady=5, padx=12).pack(side="right", padx=4, pady=6)
+        tk.Button(fbar, text="🧾  Récap PDF personne", command=self._recap_pdf,
+                  font=("Helvetica",9,"bold"), bg="#7c3aed", fg="white", bd=0,
+                  cursor="hand2", pady=5, padx=12).pack(side="right", padx=4, pady=6)
 
         cols = ("id","nom","montant","jour","date_recup","date_bon","categorie","statut")
-        self.tree = ttk.Treeview(self, columns=cols, show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(self, columns=cols, show="headings", selectmode="extended")
         for col, txt, w, anc in [
             ("id",         "#",            45,  "center"),
             ("nom",        "Nom",          190, "w"),
@@ -2998,14 +4435,14 @@ class CreancesWindow(tk.Toplevel):
         tk.Button(bbar, text="✅  Marquer comme récupéré", command=self._marquer_soldee,
                   font=("Helvetica",9,"bold"), bg=SUCCESS, fg="white", bd=0,
                   cursor="hand2", pady=6, padx=10).pack(side="right", padx=8, pady=6)
+        tk.Button(bbar, text="📦  Article non livré", command=self._article_non_livre,
+                  font=("Helvetica",9), bg="#b45309", fg="white", bd=0,
+                  cursor="hand2", pady=6, padx=10).pack(side="right", padx=4, pady=6)
         tk.Button(bbar, text="↩️  Remettre en attente", command=self._remettre_attente,
                   font=("Helvetica",9), bg="#374151", fg=TEXT, bd=0,
                   cursor="hand2", pady=6, padx=10).pack(side="right", padx=4, pady=6)
         tk.Button(bbar, text="📅  Modifier la date", command=self._modifier_date,
                   font=("Helvetica",9), bg="#b45309", fg="white", bd=0,
-                  cursor="hand2", pady=6, padx=10).pack(side="right", padx=4, pady=6)
-        tk.Button(bbar, text="🧾  Récap PDF de la personne", command=self._recap_pdf,
-                  font=("Helvetica",9,"bold"), bg="#7c3aed", fg="white", bd=0,
                   cursor="hand2", pady=6, padx=10).pack(side="right", padx=4, pady=6)
 
         s = ttk.Style(); s.theme_use("clam")
@@ -3045,14 +4482,41 @@ class CreancesWindow(tk.Toplevel):
     def _marquer_soldee(self):
         sel = self.tree.selection()
         if not sel: return
-        db.marquer_creance_soldee(int(sel[0]), True)
+        for iid in sel:
+            db.marquer_creance_soldee(int(iid), True)
         _rafraichir_feed_calendrier()
         self._load()
 
     def _remettre_attente(self):
         sel = self.tree.selection()
         if not sel: return
-        db.marquer_creance_soldee(int(sel[0]), False)
+        for iid in sel:
+            db.marquer_creance_soldee(int(iid), False)
+        _rafraichir_feed_calendrier()
+        self._load()
+
+    def _article_non_livre(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showinfo("Sélection",
+                "Sélectionnez d'abord la créance concernée.", parent=self)
+            return
+        if len(sel) > 1:
+            messagebox.showinfo("Sélection",
+                "Sélectionnez une seule créance à la fois pour signaler "
+                "un article non livré.", parent=self)
+            return
+        bid = int(sel[0])
+        lignes = db.get_lignes_bon(bid)  # (id, bon_id, produit_id, designation, prix, qte, total)
+        if not lignes:
+            messagebox.showinfo("Aucun article",
+                "Cette créance ne contient aucun article.", parent=self)
+            return
+        info = db.get_bon_creance_info(bid)
+        nom_creance = info[2] if info else ""
+        ArticleNonLivreDialog(self, bid, lignes, nom_creance, self._apres_non_livre)
+
+    def _apres_non_livre(self):
         _rafraichir_feed_calendrier()
         self._load()
 
@@ -3060,33 +4524,46 @@ class CreancesWindow(tk.Toplevel):
         sel = self.tree.selection()
         if not sel:
             messagebox.showinfo("Sélection",
-                "Sélectionnez une créance de la personne concernée dans la liste.",
+                "Sélectionnez une ou plusieurs créances dans la liste\n"
+                "(Ctrl+clic ou Maj+clic pour en choisir plusieurs).",
                 parent=self)
             return
-        # Le nom du débiteur est la 2e valeur de la ligne (colonne "Nom")
-        vals = self.tree.item(sel[0], "values")
-        nom_personne = vals[1] if len(vals) > 1 else ""
-        if not nom_personne:
-            messagebox.showinfo("Nom manquant",
-                "Cette créance n'a pas de nom associé.", parent=self)
-            return
 
-        bons = db.get_creances_personne(nom_personne, uniquement_actives=False)
+        # Récupère exactement les bons sélectionnés (par id)
+        bon_ids = [int(iid) for iid in sel]
+        bons = db.get_bons_creance_par_ids(bon_ids)
         if not bons:
             messagebox.showinfo("Aucun article",
-                f"Aucun bon trouvé pour « {nom_personne} ».", parent=self)
+                "Aucun article trouvé pour la sélection.", parent=self)
             return
 
-        nom_fichier = "recap_creance_" + \
-            "".join(ch if ch.isalnum() else "_" for ch in nom_personne) + ".pdf"
+        # Groupe par personne, en conservant l'ordre d'apparition
+        groupes = []
+        index = {}
+        for b in bons:
+            nom = b.get("nom", "") or "(sans nom)"
+            if nom not in index:
+                index[nom] = len(groupes)
+                groupes.append({"nom": nom, "bons": []})
+            groupes[index[nom]]["bons"].append(b)
+
+        noms = [g["nom"] for g in groupes]
+        if len(noms) == 1:
+            titre = noms[0]
+            nom_fichier = "recap_creance_" + \
+                "".join(ch if ch.isalnum() else "_" for ch in titre) + ".pdf"
+        else:
+            titre = f"{len(noms)} personnes"
+            nom_fichier = "recap_creances_selection.pdf"
+
         chemin = filedialog.asksaveasfilename(
-            parent=self, title=f"Enregistrer le récapitulatif — {nom_personne}",
+            parent=self, title=f"Enregistrer le récapitulatif — {titre}",
             defaultextension=".pdf", initialfile=nom_fichier,
             filetypes=[("PDF", "*.pdf"), ("Tous les fichiers", "*.*")])
         if not chemin:
             return
         try:
-            impression.generer_recap_creance_pdf(nom_personne, bons, chemin)
+            impression.generer_recap_multi_pdf(groupes, chemin)
         except Exception as e:
             messagebox.showerror("Récapitulatif",
                 f"Échec de la génération du PDF :\n{e}", parent=self)
@@ -3097,15 +4574,15 @@ class CreancesWindow(tk.Toplevel):
         sel = self.tree.selection()
         if not sel:
             messagebox.showinfo("Sélection",
-                "Sélectionnez d'abord une créance dans la liste.", parent=self)
+                "Sélectionnez d'abord une ou plusieurs créances dans la liste.", parent=self)
             return
-        bid = int(sel[0])
         vals = self.tree.item(sel[0], "values")
         date_actuelle = vals[5] if len(vals) > 5 else ""   # colonne "Date du bon"
 
+        libelle = ("Nouvelle date de posage du bon (jj/mm/aaaa) :" if len(sel) == 1
+                   else f"Nouvelle date de posage pour les {len(sel)} créances (jj/mm/aaaa) :")
         nouvelle = simpledialog.askstring(
-            "Modifier la date de posage",
-            "Nouvelle date de posage du bon (jj/mm/aaaa) :",
+            "Modifier la date de posage", libelle,
             initialvalue=date_actuelle, parent=self)
         if nouvelle is None:
             return
@@ -3117,26 +4594,25 @@ class CreancesWindow(tk.Toplevel):
                 "Format attendu : jj/mm/aaaa (ex : 07/08/2026).", parent=self)
             return
 
-        # Recalcule les dates de livraison/récupération à partir de la nouvelle date
-        infos_bon = db.get_bon_pour_recalcul(bid)
-        jour_creance = date_creance = ""
-        if infos_bon:
-            categorie, pids = infos_bon
-            produits_ref = db.get_produits(actif_only=False)
-            commande = {pid: {} for pid in pids}
-            infos = _infos_livraison_commande(commande, produits_ref, categorie,
-                                              date_creation=date_obj)
-            jour_creance = ", ".join(j for j, _ in infos if j)
-            date_creance = infos[0][1].strftime("%d/%m/%Y")
+        produits_ref = db.get_produits(actif_only=False)
+        for iid in sel:
+            bid = int(iid)
+            infos_bon = db.get_bon_pour_recalcul(bid)
+            jour_creance = date_creance = ""
+            if infos_bon:
+                categorie, pids = infos_bon
+                commande = {pid: {} for pid in pids}
+                infos = _infos_livraison_commande(commande, produits_ref, categorie,
+                                                  date_creation=date_obj)
+                jour_creance = ", ".join(j for j, _ in infos if j)
+                date_creance = infos[0][1].strftime("%d/%m/%Y")
+            db.modifier_date_bon(bid, nouvelle, jour_creance, date_creance)
 
-        db.modifier_date_bon(bid, nouvelle, jour_creance, date_creance)
         _rafraichir_feed_calendrier()
         self._load()
-        self.tree.selection_set(str(bid))
         messagebox.showinfo("Date modifiée",
-            f"Date de posage mise à jour : {nouvelle}\n"
-            f"Nouvelle date de livraison/récupération estimée : {date_creance or '—'}",
-            parent=self)
+            f"Date de posage mise à jour ({nouvelle}) pour "
+            f"{len(sel)} créance(s).", parent=self)
 
     def _exporter_ics(self):
         from datetime import datetime as _dt
@@ -3446,15 +4922,20 @@ class HistoriqueWindow(tk.Toplevel):
 
     def _generer_pdf_bon(self, bon, pdf_dir):
         bid, date, cat, nom, prenom, ecrou, bat, cell, total, *rest = bon
-        utype    = rest[0] if rest else "invite"
+        utype       = rest[0] if len(rest) > 0 else "invite"
+        est_creance = rest[1] if len(rest) > 1 else 0
         lig_raw  = db.get_lignes_bon(bid)
         lignes   = [{"id":l[2],"nom":l[3],"prix":l[4],
                      "qte":l[5],"total":l[6],"qte_max":0} for l in lig_raw]
-        sp       = self._get_sig_path(utype)
+        sp       = None if est_creance else self._get_sig_path(utype)
         pdf_path = os.path.join(pdf_dir,
                                 f"bon_{bid}_{cat.replace(' ','_').replace('&','et')}.pdf")
-        nom_p, prenom_p, ecrou_p, bat_p, cell_p, date_p = _identite_bon(
-            nom, prenom, ecrou, bat, cell, date)
+        if est_creance:
+            nom_p = prenom_p = ecrou_p = bat_p = cell_p = ""
+            date_p = date
+        else:
+            nom_p, prenom_p, ecrou_p, bat_p, cell_p, date_p = _identite_bon(
+                nom, prenom, ecrou, bat, cell, date)
         impression.generer_bon_pdf(cat, nom_p, prenom_p, ecrou_p, bat_p, cell_p,
                                    lignes, total, date_p, pdf_path,
                                    signature_path=sp)
@@ -3546,13 +5027,345 @@ class HistoriqueWindow(tk.Toplevel):
                 f"{len(pdfs)} bon(s) ouvert(s) pour impression.", parent=self)
 
 
+class RemboursementsWindow(tk.Toplevel):
+    """Suivi des articles (de mes bons) à rembourser : ajout depuis un bon,
+    conservation avec dates de commande/livraison, validation du remboursement."""
+    def __init__(self, master):
+        super().__init__(master)
+        self.title("Remboursements")
+        self.configure(bg=DARK_BG)
+        self.geometry("760x600")
+
+        bar = tk.Frame(self, bg="#b45309", height=50); bar.pack(fill="x"); bar.pack_propagate(False)
+        tk.Label(bar, text="💶  Articles à rembourser", font=("Helvetica", 14, "bold"),
+                 bg="#b45309", fg="white").pack(side="left", padx=18)
+        tk.Button(bar, text="✕  Fermer", command=self.destroy, font=("Helvetica", 10),
+                  bg=DANGER, fg="white", bd=0, cursor="hand2", pady=6, padx=14).pack(
+                  side="right", padx=12, pady=8)
+
+        outils = tk.Frame(self, bg=PANEL_BG); outils.pack(fill="x")
+        tk.Button(outils, text="➕  Ajouter depuis un bon",
+                  command=self._ajouter_depuis_bon, font=("Helvetica", 10, "bold"),
+                  bg=SUCCESS, fg="white", bd=0, cursor="hand2", pady=7, padx=10).pack(
+                  side="left", padx=10, pady=8)
+        tk.Button(outils, text="⟳  Actualiser", command=self._charger,
+                  font=("Helvetica", 10), bg=CARD_BG, fg=TEXT, bd=0, cursor="hand2",
+                  pady=7, padx=10).pack(side="left", padx=4, pady=8)
+
+        corps = tk.Frame(self, bg=DARK_BG); corps.pack(fill="both", expand=True, padx=10, pady=8)
+        self.canvas = tk.Canvas(corps, bg=DARK_BG, highlightthickness=0)
+        sb = tk.Scrollbar(corps, orient="vertical", command=self.canvas.yview)
+        self.liste = tk.Frame(self.canvas, bg=DARK_BG)
+        self.liste.bind("<Configure>",
+                        lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+        self._cv_item = self.canvas.create_window((0, 0), window=self.liste, anchor="nw")
+        self.canvas.bind("<Configure>", lambda e: self.canvas.itemconfig(self._cv_item, width=e.width))
+        self.canvas.configure(yscrollcommand=sb.set)
+        self.canvas.pack(side="left", fill="both", expand=True); sb.pack(side="right", fill="y")
+        self._charger()
+
+    def _fmt(self, d):
+        import datetime as _dt
+        for f in ("%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                return _dt.datetime.strptime((d or "").strip(), f).strftime("%d/%m/%Y")
+            except Exception:
+                pass
+        return d or "?"
+
+    def _charger(self):
+        for w in self.liste.winfo_children():
+            w.destroy()
+        try:
+            a_faire = db.get_remboursements("a_rembourser")
+            faits = db.get_remboursements("rembourse")
+        except Exception as e:
+            tk.Label(self.liste, text=f"Erreur : {e}", bg=DARK_BG, fg=DANGER).pack(pady=20)
+            return
+
+        total = sum(float(r["prix"] or 0) * int(r["quantite"]) for r in a_faire)
+        tk.Label(self.liste, text=f"À REMBOURSER  —  {len(a_faire)} article(s)  "
+                 f"({total:.2f} €)", font=("Helvetica", 11, "bold"), bg=DARK_BG,
+                 fg=GOLD, anchor="w").pack(fill="x", pady=(2, 6))
+        if not a_faire:
+            tk.Label(self.liste, text="Rien à rembourser pour l'instant.",
+                     bg=DARK_BG, fg=TEXT_MUTED).pack(anchor="w", padx=6, pady=4)
+        for r in a_faire:
+            self._carte(r, en_attente=True)
+
+        tk.Label(self.liste, text="DÉJÀ REMBOURSÉS", font=("Helvetica", 11, "bold"),
+                 bg=DARK_BG, fg=TEXT_MUTED, anchor="w").pack(fill="x", pady=(16, 6))
+        if not faits:
+            tk.Label(self.liste, text="(aucun)", bg=DARK_BG, fg=TEXT_MUTED).pack(
+                     anchor="w", padx=6)
+        for r in faits:
+            self._carte(r, en_attente=False)
+
+    def _carte(self, r, en_attente):
+        carte = tk.Frame(self.liste, bg=CARD_BG,
+                         highlightbackground=(GOLD if en_attente else BORDER),
+                         highlightthickness=1)
+        carte.pack(fill="x", pady=3)
+        haut = tk.Frame(carte, bg=CARD_BG); haut.pack(fill="x", padx=10, pady=(7, 1))
+        tk.Label(haut, text=f"{r['nom']}  ×{r['quantite']}", font=("Helvetica", 11, "bold"),
+                 bg=CARD_BG, fg=TEXT).pack(side="left")
+        montant = float(r["prix"] or 0) * int(r["quantite"])
+        tk.Label(haut, text=f"{montant:.2f} €", font=("Helvetica", 10, "bold"),
+                 bg=CARD_BG, fg=GOLD).pack(side="left", padx=10)
+        if en_attente:
+            tk.Button(haut, text="🗑", command=lambda i=r["id"]: self._supprimer(i),
+                      font=("Helvetica", 9), bg=DANGER, fg="white", bd=0, cursor="hand2",
+                      padx=8, pady=3).pack(side="right")
+            tk.Button(haut, text="✓ Remboursé", command=lambda i=r["id"]: self._valider(i),
+                      font=("Helvetica", 9, "bold"), bg=SUCCESS, fg="white", bd=0,
+                      cursor="hand2", padx=8, pady=3).pack(side="right", padx=6)
+        else:
+            tk.Label(haut, text=f"remboursé le {self._fmt(r['date_remboursement'])}",
+                     font=("Helvetica", 9), bg=CARD_BG, fg=SUCCESS).pack(side="right")
+        info = (f"{r['categorie']}  •  commandé le {self._fmt(r['date_commande'])}"
+                f"  •  livraison prévue {self._fmt(r['date_livraison'])}")
+        tk.Label(carte, text=info, font=("Helvetica", 9), bg=CARD_BG, fg=TEXT_MUTED,
+                 anchor="w").pack(fill="x", padx=10, pady=(0, 7))
+
+    def _valider(self, rid):
+        db.valider_remboursement(rid)
+        self._charger()
+
+    def _supprimer(self, rid):
+        if messagebox.askyesno("Supprimer", "Retirer cet article du suivi des "
+                               "remboursements ?", parent=self):
+            db.supprimer_remboursement(rid)
+            self._charger()
+
+    def _ajouter_depuis_bon(self):
+        AjoutRemboursementDialog(self, on_ajout=self._charger)
+
+
+class AjoutRemboursementDialog(tk.Toplevel):
+    """Choisir un de mes bons, puis les articles (et quantités) à rembourser."""
+    def __init__(self, parent, on_ajout=None):
+        super().__init__(parent)
+        self.on_ajout = on_ajout
+        self.title("Ajouter un remboursement")
+        self.configure(bg=DARK_BG)
+        self.geometry("560x560")
+        try:
+            self.bons = db.get_bons_mon_nom()
+        except Exception:
+            self.bons = []
+
+        tk.Label(self, text="➕ Articles à rembourser", font=("Helvetica", 13, "bold"),
+                 bg=DARK_BG, fg=TEXT).pack(pady=(10, 2))
+        tk.Label(self, text="Choisis un de tes bons, puis coche les articles non reçus "
+                 "/ à rembourser et leur quantité.", font=("Helvetica", 9), bg=DARK_BG,
+                 fg=TEXT_MUTED, wraplength=520, justify="center").pack(pady=(0, 6))
+
+        if not self.bons:
+            tk.Label(self, text="Aucun bon à ton nom trouvé.", bg=DARK_BG,
+                     fg=TEXT_MUTED, font=("Helvetica", 11)).pack(pady=30)
+            return
+
+        sel = tk.Frame(self, bg=DARK_BG); sel.pack(fill="x", padx=14)
+        tk.Label(sel, text="Bon :", bg=DARK_BG, fg=TEXT, font=("Helvetica", 10)).pack(side="left")
+        self.bon_var = tk.StringVar()
+        libelles = [f"{self._fmt(b['date'])} — {b['categorie']} "
+                    f"({len(b['lignes'])} article(s))" for b in self.bons]
+        self.bon_var.set(libelles[0])
+        om = tk.OptionMenu(sel, self.bon_var, *libelles, command=lambda _=None: self._maj_articles())
+        om.config(font=("Helvetica", 9), bg=CARD_BG, fg=TEXT, bd=0, highlightthickness=0,
+                  activebackground=CARD_BG); om.pack(side="left", padx=8, fill="x", expand=True)
+        self._libelles = libelles
+
+        self.zone = tk.Frame(self, bg=DARK_BG); self.zone.pack(fill="both", expand=True,
+                                                               padx=14, pady=8)
+        tk.Button(self, text="Ajouter au suivi des remboursements", command=self._valider,
+                  font=("Helvetica", 10, "bold"), bg=SUCCESS, fg="white", bd=0,
+                  cursor="hand2", pady=8).pack(fill="x", padx=14, pady=(0, 12))
+        self._maj_articles()
+
+    def _fmt(self, d):
+        import datetime as _dt
+        for f in ("%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                return _dt.datetime.strptime((d or "").strip(), f).strftime("%d/%m/%Y")
+            except Exception:
+                pass
+        return d or "?"
+
+    def _bon_courant(self):
+        try:
+            return self.bons[self._libelles.index(self.bon_var.get())]
+        except Exception:
+            return self.bons[0]
+
+    def _maj_articles(self):
+        for w in self.zone.winfo_children():
+            w.destroy()
+        b = self._bon_courant()
+        tk.Label(self.zone, text=f"Livraison prévue : {self._fmt(b['date_livraison'])}",
+                 font=("Helvetica", 9, "italic"), bg=DARK_BG, fg=TEXT_MUTED).pack(anchor="w")
+        self.rows = []
+        for l in b["lignes"]:
+            row = tk.Frame(self.zone, bg=CARD_BG); row.pack(fill="x", pady=2)
+            v = tk.BooleanVar(value=False)
+            tk.Checkbutton(row, variable=v, bg=CARD_BG, activebackground=CARD_BG,
+                           selectcolor=DARK_BG, bd=0, highlightthickness=0).pack(side="left", padx=4)
+            tk.Label(row, text=f"{l['nom']}", font=("Helvetica", 10, "bold"), bg=CARD_BG,
+                     fg=TEXT, anchor="w", wraplength=300, justify="left").pack(
+                     side="left", fill="x", expand=True, pady=6)
+            tk.Label(row, text=f"commandé {l['qte']}", font=("Helvetica", 9),
+                     bg=CARD_BG, fg=TEXT_MUTED).pack(side="left", padx=4)
+            sp = tk.Spinbox(row, from_=1, to=max(1, l['qte']), width=4,
+                            font=("Helvetica", 10), bg=DARK_BG, fg=TEXT, bd=0,
+                            buttonbackground=CARD_BG, insertbackground=TEXT, justify="center")
+            sp.delete(0, "end"); sp.insert(0, str(l['qte']))
+            sp.pack(side="right", padx=8)
+            self.rows.append((v, sp, l))
+
+    def _valider(self):
+        b = self._bon_courant()
+        arts = []
+        for v, sp, l in self.rows:
+            if not v.get():
+                continue
+            try:
+                q = int(sp.get())
+            except ValueError:
+                q = l['qte']
+            arts.append({"id": l["id"], "nom": l["nom"], "categorie": b["categorie"],
+                         "prix": l["prix"], "quantite": q,
+                         "date_commande": b["date"], "date_livraison": b["date_livraison"],
+                         "source_uid": b["uid"]})
+        if not arts:
+            messagebox.showinfo("Remboursement", "Coche au moins un article.", parent=self)
+            return
+        db.ajouter_remboursement(arts)
+        if self.on_ajout:
+            self.on_ajout()
+        messagebox.showinfo("Remboursement", f"{len(arts)} article(s) ajouté(s) au "
+                            "suivi des remboursements.", parent=self)
+        self.destroy()
+
+
+class LivraisonsWindow(tk.Toplevel):
+    """Livraisons attendues (cantines à mon nom + créances) : voir, annuler,
+    et récupérer rétroactivement les bons/créances déjà saisis."""
+    def __init__(self, master):
+        super().__init__(master)
+        self.title("Livraisons à venir")
+        self.configure(bg=DARK_BG)
+        self.geometry("720x560")
+
+        bar = tk.Frame(self, bg=HEADER_BG, height=50); bar.pack(fill="x"); bar.pack_propagate(False)
+        tk.Label(bar, text="🚚  Livraisons attendues", font=("Helvetica", 14, "bold"),
+                 bg=HEADER_BG, fg="white").pack(side="left", padx=18)
+        tk.Button(bar, text="✕  Fermer", command=self.destroy, font=("Helvetica", 10),
+                  bg=DANGER, fg="white", bd=0, cursor="hand2", pady=6, padx=14).pack(
+                  side="right", padx=12, pady=8)
+
+        outils = tk.Frame(self, bg=PANEL_BG); outils.pack(fill="x")
+        tk.Button(outils, text="⟲  Récupérer les bons/créances déjà saisis",
+                  command=self._retroactif, font=("Helvetica", 10, "bold"),
+                  bg=SUCCESS, fg="white", bd=0, cursor="hand2", pady=7, padx=10).pack(
+                  side="left", padx=10, pady=8)
+        tk.Button(outils, text="⟳  Actualiser", command=self._charger,
+                  font=("Helvetica", 10), bg=CARD_BG, fg=TEXT, bd=0, cursor="hand2",
+                  pady=7, padx=10).pack(side="left", padx=4, pady=8)
+        tk.Label(outils, text="La confirmation de réception se fait dans le widget 📦 Mon stock.",
+                 font=("Helvetica", 8), bg=PANEL_BG, fg=TEXT_MUTED).pack(side="left", padx=10)
+
+        corps = tk.Frame(self, bg=DARK_BG); corps.pack(fill="both", expand=True, padx=10, pady=8)
+        self.canvas = tk.Canvas(corps, bg=DARK_BG, highlightthickness=0)
+        sb = tk.Scrollbar(corps, orient="vertical", command=self.canvas.yview)
+        self.liste = tk.Frame(self.canvas, bg=DARK_BG)
+        self.liste.bind("<Configure>",
+                        lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+        self._cv_item = self.canvas.create_window((0, 0), window=self.liste, anchor="nw")
+        self.canvas.bind("<Configure>", lambda e: self.canvas.itemconfig(self._cv_item, width=e.width))
+        self.canvas.configure(yscrollcommand=sb.set)
+        self.canvas.pack(side="left", fill="both", expand=True); sb.pack(side="right", fill="y")
+
+        self._charger()
+
+    def _charger(self):
+        for w in self.liste.winfo_children():
+            w.destroy()
+        try:
+            recs = db.get_receptions()
+        except Exception as e:
+            tk.Label(self.liste, text=f"Erreur : {e}", bg=DARK_BG, fg=DANGER).pack(pady=20)
+            return
+        if not recs:
+            tk.Label(self.liste, text="Aucune livraison attendue.\n\nUtilisez "
+                     "« Récupérer les bons/créances déjà saisis » pour importer "
+                     "l'existant.", bg=DARK_BG, fg=TEXT_MUTED, font=("Helvetica", 11),
+                     justify="center").pack(pady=30)
+            return
+        import datetime as _dt
+        today = _dt.date.today().strftime("%Y-%m-%d")
+        for r in recs:
+            due = r["date_prevue"] <= today
+            carte = tk.Frame(self.liste, bg=CARD_BG,
+                             highlightbackground=(GOLD if due else BORDER),
+                             highlightthickness=1)
+            carte.pack(fill="x", pady=4)
+            haut = tk.Frame(carte, bg=CARD_BG); haut.pack(fill="x", padx=10, pady=(8, 2))
+            try:
+                dfr = _dt.datetime.strptime(r["date_prevue"], "%Y-%m-%d").strftime("%d/%m/%Y")
+            except Exception:
+                dfr = r["date_prevue"]
+            if r["type"] == "creance":
+                titre = f"💰 Créance de {r['personne']}  ({r['categorie']})"
+            else:
+                titre = f"🛒 Ma cantine  ({r['categorie']})"
+            tk.Label(haut, text=titre, font=("Helvetica", 11, "bold"), bg=CARD_BG,
+                     fg=TEXT).pack(side="left")
+            etat = "à réceptionner" if due else "prévue"
+            tk.Label(haut, text=f"{etat} le {dfr}", font=("Helvetica", 9),
+                     bg=CARD_BG, fg=(GOLD if due else TEXT_MUTED)).pack(side="left", padx=10)
+            tk.Button(haut, text="🗑 Annuler", command=lambda i=r["id"]: self._supprimer(i),
+                      font=("Helvetica", 8), bg=DANGER, fg="white", bd=0, cursor="hand2",
+                      padx=8, pady=3).pack(side="right")
+            arts = ", ".join(f"{l['nom']} ×{l['qte_attendue']}" for l in r["lignes"])
+            tk.Label(carte, text=arts, font=("Helvetica", 9), bg=CARD_BG, fg=TEXT_MUTED,
+                     anchor="w", justify="left", wraplength=640).pack(fill="x", padx=10, pady=(0, 8))
+
+    def _supprimer(self, rid):
+        if not messagebox.askyesno("Annuler", "Supprimer cette livraison attendue ?",
+                                   parent=self):
+            return
+        try:
+            db.supprimer_reception(rid)
+        except Exception as e:
+            messagebox.showerror("Annuler", f"Échec : {e}", parent=self)
+        self._charger()
+
+    def _retroactif(self):
+        try:
+            n = db.creer_receptions_retroactives()
+        except Exception as e:
+            messagebox.showerror("Récupération", f"Échec : {e}", parent=self)
+            return
+        messagebox.showinfo("Récupération",
+            f"{n} livraison(s) attendue(s) créée(s) à partir des bons/créances "
+            f"déjà saisis." if n else
+            "Aucune nouvelle livraison à récupérer (déjà à jour).", parent=self)
+        self._charger()
+
+
 # ─────────────────────────────────────────────
 # ENTRY POINT
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
-    db.init_db()
-    login = LoginWindow()
-    login.mainloop()
-    if login.user_type:
-        app = CantineApp(login.user_type, login.user_info)
-        app.mainloop()
+    # Mode widget intégré : « Cantine.exe --widget » lance directement le petit
+    # widget de stock (gadget de bureau), sans login ni fenêtre principale.
+    if "--widget" in sys.argv:
+        import widget_stock
+        widget_stock.main()
+    else:
+        db.init_db()
+        login = LoginWindow()
+        login.mainloop()
+        if login.user_type:
+            app = CantineApp(login.user_type, login.user_info)
+            app.mainloop()

@@ -307,6 +307,113 @@ def init_db():
         label TEXT,
         montant REAL,
         actif INTEGER DEFAULT 1)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS reserve (
+        produit_id TEXT PRIMARY KEY,
+        nom TEXT,
+        categorie TEXT,
+        prix REAL,
+        quantite INTEGER)""")
+    # « Mon stock » : stock perso en cellule, alimenté automatiquement par les
+    # bons au nom de l'utilisateur + les créances. Distinct de la réserve.
+    c.execute("""CREATE TABLE IF NOT EXISTS mon_stock (
+        produit_id TEXT PRIMARY KEY,
+        nom TEXT,
+        categorie TEXT,
+        prix REAL,
+        quantite INTEGER,
+        peremption TEXT DEFAULT '')""")
+    # Journal des retraits de « Mon stock » (widget de retrait quotidien)
+    c.execute("""CREATE TABLE IF NOT EXISTS stock_retraits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT,
+        produit_id TEXT,
+        nom TEXT,
+        categorie TEXT,
+        prix REAL,
+        quantite INTEGER)""")
+    # Livraisons attendues : une cantine à mon nom ou une créance crée une
+    # réception prévue pour le jour de livraison. Le stock n'est alimenté qu'une
+    # fois la réception CONFIRMÉE (via le widget), avec les quantités réellement
+    # reçues (le non-livré est oublié).
+    c.execute("""CREATE TABLE IF NOT EXISTS receptions_attendues (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT,                 -- 'cantine' ou 'creance'
+        source_uid TEXT,
+        personne TEXT,             -- nom (créance) ; vide pour une cantine perso
+        categorie TEXT,
+        date_prevue TEXT,          -- 'YYYY-MM-DD'
+        statut TEXT,               -- 'attente' / 'recu'
+        date_creation TEXT)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS receptions_lignes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        reception_id INTEGER,
+        produit_id TEXT,
+        nom TEXT,
+        prix REAL,
+        qte_attendue INTEGER,
+        qte_recue INTEGER DEFAULT 0)""")
+    # Rappels de rachat : override manuel par article (1 = me rappeler,
+    # 0 = ne plus rappeler). Sans entrée, la classification auto décide.
+    c.execute("""CREATE TABLE IF NOT EXISTS stock_rappel (
+        produit_id TEXT PRIMARY KEY,
+        actif INTEGER)""")
+    # Articles (de mes bons) à rembourser : suivis avec date de commande et de
+    # livraison jusqu'à validation du remboursement.
+    c.execute("""CREATE TABLE IF NOT EXISTS remboursements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        produit_id TEXT,
+        nom TEXT,
+        categorie TEXT,
+        prix REAL,
+        quantite INTEGER,
+        date_commande TEXT,
+        date_livraison TEXT,
+        source_uid TEXT,
+        statut TEXT,               -- 'a_rembourser' / 'rembourse'
+        date_ajout TEXT,
+        date_remboursement TEXT DEFAULT '')""")
+    # Liste hygiène mensuelle personnalisable (corporelle + cellule)
+    c.execute("""CREATE TABLE IF NOT EXISTS hygiene_liste (
+        produit_id TEXT PRIMARY KEY,
+        groupe TEXT,
+        qte_par_pers INTEGER,
+        ordre INTEGER)""")
+    # Remplissage — codes du catalogue v2 (ENTRETIEN HYGIENE). Respecte les
+    # règles : marques (pas de 1er prix), gel douche AXE, shampoing/dentifrice
+    # de marque, lessive LIQUIDE ; SANS gel cheveux, rasoir/mousse à raser,
+    # javel, papier WC, lessive poudre, sacs poubelle, savon mains, stick
+    # lèvres, mouchoirs.
+    #   groupe 'corporelle' = par personne (×pers)   |   'cellule' = fixe
+    hyg_defaut = [
+        # Corporelle (par personne)
+        ("EH130", "corporelle", 1),  # Gel douche AXE 250mL
+        ("EH134", "corporelle", 1),  # Shampoing 2 en 1 FRUCTIS 250mL
+        ("EH136", "corporelle", 1),  # Dentifrice AQUAFRESH triple action
+        ("EH141", "corporelle", 1),  # Brosse à dents SIGNAL souple
+        ("EH155", "corporelle", 1),  # Déo stick WILLIAMS 75mL
+        ("EH158", "corporelle", 1),  # Crème hydratante NIVEA 100mL
+        ("EH169", "corporelle", 1),  # Cotons tiges ECO+
+        # Cellule (fixe)
+        ("EH45", "cellule", 1),      # Lessive liquide Le Chat 1,17L
+        ("EH47", "cellule", 1),      # Assouplissant soupline 1,9L
+        ("EH52", "cellule", 1),      # Liquide vaisselle 1L
+        ("EH54", "cellule", 1),      # Crème à récurer 750mL
+        ("EH55", "cellule", 1),      # Gel WC 750mL
+        ("EH48", "cellule", 1),      # Lingettes St marc multi usages
+        ("EH50", "cellule", 1),      # Nettoyant ménager Saint Marc 1L
+        ("EH40", "cellule", 6),      # Eponge végétale abrasive
+        ("EH68", "cellule", 2),      # Chiffons microfibres
+    ]
+    # Reset v2 : les anciens codes (HY*/AC*) n'existent plus dans le nouveau
+    # catalogue. On recharge la liste une fois sur les codes EH*.
+    c.execute("SELECT valeur FROM parametres WHERE cle='hygiene_init_v2'")
+    if c.fetchone() is None:
+        c.execute("DELETE FROM hygiene_liste")
+        for i, (code, grp, q) in enumerate(hyg_defaut):
+            c.execute("INSERT OR REPLACE INTO hygiene_liste VALUES (?,?,?,?)",
+                      (code, grp, q, i))
+        c.execute("INSERT OR REPLACE INTO parametres VALUES ('hygiene_init_v1','1')")
+        c.execute("INSERT OR REPLACE INTO parametres VALUES ('hygiene_init_v2','1')")
     # Dépenses fixes par défaut
     for fid, flbl, fmnt in [("tv","Télévision",8.0),("frigo","Frigo",10.0),("telephone","Téléphone",20.0)]:
         c.execute("INSERT OR IGNORE INTO depenses_fixes VALUES (?,?,?,1)", (fid, flbl, fmnt))
@@ -321,6 +428,7 @@ def init_db():
         "ALTER TABLE bons ADD COLUMN creance_soldee INTEGER DEFAULT 0",
         "ALTER TABLE bons ADD COLUMN date_creance TEXT DEFAULT ''",
         "ALTER TABLE bons ADD COLUMN uid TEXT DEFAULT ''",
+        "ALTER TABLE mon_stock ADD COLUMN peremption TEXT DEFAULT ''",
     ]:
         try: c.execute(ddl)
         except: pass
@@ -331,21 +439,74 @@ def init_db():
     # Comptes par défaut
     c.execute("INSERT OR IGNORE INTO utilisateurs VALUES (1,'yoann','1234','yoann')")
     c.execute("INSERT OR IGNORE INTO utilisateurs VALUES (2,'admin','admin','admin')")
-    # Produits
-    c.execute("SELECT COUNT(*) FROM produits")
-    if c.fetchone()[0] == 0:
-        c.executemany(
-            "INSERT INTO produits (id,nom,categorie,prix,qte_max,actif) VALUES (?,?,?,?,?,?)",
-            PRODUITS_INITIAUX)
+    # Produits — catalogue v2 (octobre 2026).
+    # Le nouveau catalogue officiel remplace entièrement l'ancien. On applique
+    # une fois (flag catalogue_v2) : on vide la table produits et on recharge
+    # depuis catalogue_data, puis on fixe le jour de livraison de chaque
+    # catégorie. Les bons déjà enregistrés (historique, créances) ne sont pas
+    # touchés — ils conservent leurs anciens libellés.
+    _catalogue_charge = False
+    try:
+        import catalogue_data as _cat
+        c.execute("SELECT valeur FROM parametres WHERE cle='catalogue_v2'")
+        deja = c.fetchone() is not None
+        c.execute("SELECT COUNT(*) FROM produits")
+        vide = c.fetchone()[0] == 0
+        if vide or not deja:
+            c.execute("DELETE FROM produits")
+            c.executemany(
+                "INSERT INTO produits (id,nom,categorie,prix,qte_max,actif,jour_livraison) "
+                "VALUES (?,?,?,?,?, 'Oui', '')",
+                _cat.produits_rows())
+            # Jour de livraison par catégorie (affiché dans le titre du bon)
+            for nom, _pref, jour, *_rest in _cat.CATEGORIES_META:
+                c.execute("INSERT OR REPLACE INTO parametres VALUES (?,?)",
+                          (f"livraison_cat_{nom}", jour))
+            c.execute("INSERT OR REPLACE INTO parametres VALUES ('catalogue_v2','1')")
+        _catalogue_charge = True
+    except Exception:
+        _catalogue_charge = False
+    # Repli : si catalogue_data est introuvable et base vide, ancien catalogue
+    if not _catalogue_charge:
+        c.execute("SELECT COUNT(*) FROM produits")
+        if c.fetchone()[0] == 0:
+            c.executemany(
+                "INSERT INTO produits (id,nom,categorie,prix,qte_max,actif) VALUES (?,?,?,?,?,?)",
+                PRODUITS_INITIAUX)
     # Paramètres Yoann
     defaults = [("nom","LUTZ"),("prenom","Yoann"),("ecrou","9283"),
                 ("batiment","C"),("cellule","323"),("signature_path",""),
                 ("maj_source","github"),("maj_chemin",""),
                 ("bon_sans_identite","0"),
                 ("ramassage_jour","Mercredi"),
-                ("distribution_delai_semaines","3")]
+                ("distribution_delai_semaines","3"),
+                ("stock_seuil_bas","2")]
     for k, v in defaults:
         c.execute("INSERT OR IGNORE INTO parametres VALUES (?,?)", (k, v))
+
+    # ── Calage d'impression : reset unique vers les valeurs mesurées ──────────
+    # Les anciennes bases peuvent contenir des essais de calage erronés
+    # (impr_y1/impr_pas/offsets). On force UNE FOIS le calage vérifié par
+    # superposition sur les vrais bons, puis on marque l'opération faite pour
+    # que l'utilisateur puisse ensuite réajuster librement.
+    c.execute("SELECT valeur FROM parametres WHERE cle='impr_calage_v6'")
+    if c.fetchone() is None:
+        for k, v in [("impr_y1", "79"), ("impr_pas", "5.15"),
+                     ("impression_offset_x", "0"), ("impression_offset_y", "0")]:
+            c.execute("INSERT OR REPLACE INTO parametres VALUES (?,?)", (k, v))
+        c.execute("INSERT OR REPLACE INTO parametres VALUES ('impr_calage_v6','1')")
+
+    # ── Décalage vertical PAR CATÉGORIE (mode papier pré-imprimé) ─────────────
+    # Certains blocs pré-imprimés (ex : Hygiène) ont leur tableau physiquement
+    # décalé par rapport aux autres. Ce réglage, propre à chaque catégorie,
+    # corrige UNE catégorie sans toucher aux autres. Positif = descend le texte.
+    _cats_dy = ["boissons", "produits_laitiers", "fruits_legumes", "casher",
+                "alimentaire", "produits_frais", "halal", "entretien_hygiene",
+                "patisseries", "tabac", "revues"]
+    for slug in _cats_dy:
+        c.execute("INSERT OR IGNORE INTO parametres VALUES (?, '0')",
+                  (f"impr_dy_{slug}",))
+
     conn.commit()
     conn.close()
 
@@ -438,6 +599,13 @@ def sauvegarder_bon(categorie, nom, prenom, ecrou, batiment, cellule, lignes, to
                   (bon_id, l['id'], l['nom'], l['prix'], l['qte'], l['total']))
     conn.commit()
     conn.close()
+    # Livraison attendue : bons à MON nom + créances créent une réception à
+    # confirmer le jour de livraison (le stock n'est PAS alimenté tout de suite).
+    try:
+        _creer_reception_si_concerne(nom, lignes, bool(est_creance),
+                                     categorie, nom_creance, date_creance, bon_uid)
+    except Exception:
+        pass
     return bon_id
 
 def get_creances(uniquement_actives=True):
@@ -470,6 +638,29 @@ def get_bon_creance_info(bon_id):
     if row is None:
         return None
     return (row[0] or 0, row[1] or 0, row[2] or "")
+
+
+def get_bon_complet(bon_id):
+    """Retourne toutes les infos d'un bon sous forme de dict, ou None."""
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM bons WHERE id=?", (bon_id,))
+    row = c.fetchone()
+    conn.close()
+    if row is None:
+        return None
+    d = dict(row)
+    return {
+        "categorie": d.get("categorie", ""),
+        "nom": d.get("nom", ""), "prenom": d.get("prenom", ""),
+        "ecrou": d.get("ecrou", ""), "batiment": d.get("batiment", ""),
+        "cellule": d.get("cellule", ""), "date": d.get("date", ""),
+        "user_type": d.get("user_type", "invite"),
+        "nom_creance": d.get("nom_creance", ""),
+        "jour_creance": d.get("jour_creance", ""),
+        "date_creance": d.get("date_creance", ""),
+    }
 
 
 def get_bon_pour_recalcul(bon_id):
@@ -658,6 +849,31 @@ def get_creances_personne(nom_creance, uniquement_actives=False):
     conn.close()
     return bons
 
+def get_bons_creance_par_ids(bon_ids):
+    """Retourne les bons-créance correspondant à une liste d'id, chacun sous
+    forme de dict {nom, categorie, date, soldee, lignes:[...]}.
+    Utilisé pour le récap d'une sélection multiple."""
+    if not bon_ids:
+        return []
+    conn = get_connection()
+    c = conn.cursor()
+    bons = []
+    for bid in bon_ids:
+        c.execute("SELECT nom_creance, categorie, date, creance_soldee "
+                  "FROM bons WHERE id=?", (bid,))
+        row = c.fetchone()
+        if row is None:
+            continue
+        nom, cat, date, soldee = row
+        c.execute("SELECT produit_id, designation, prix, quantite, total_ligne "
+                  "FROM lignes_bon WHERE bon_id=?", (bid,))
+        lignes = [{"id": r[0], "nom": r[1], "prix": r[2],
+                   "qte": r[3], "total": r[4]} for r in c.fetchall()]
+        bons.append({"nom": nom or "", "categorie": cat, "date": date,
+                     "soldee": bool(soldee), "lignes": lignes})
+    conn.close()
+    return bons
+
 def get_budget_semaine():
     """Retourne (budget, total_depense) pour la semaine en cours."""
     from datetime import datetime, timedelta
@@ -807,5 +1023,969 @@ def ajouter_depense_fixe(fid, label, montant):
     conn = get_connection()
     c = conn.cursor()
     c.execute("INSERT OR REPLACE INTO depenses_fixes VALUES (?,?,?,1)", (fid, label, montant))
+    conn.commit()
+    conn.close()
+
+
+# ─────────────────────────────────────────────
+# Réserve de cantine (stock persistant pour la répartition par dette)
+# ─────────────────────────────────────────────
+def get_reserve():
+    """Retourne la réserve sous forme de liste de dicts
+    {id, nom, categorie, prix, qte} — quantités > 0 uniquement."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT produit_id, nom, categorie, prix, quantite FROM reserve "
+              "WHERE quantite > 0")
+    rows = c.fetchall()
+    conn.close()
+    return [{"id": r[0], "nom": r[1], "categorie": r[2],
+             "prix": r[3], "qte": r[4]} for r in rows]
+
+def reserve_total():
+    """Valeur totale de la réserve en euros."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT COALESCE(SUM(prix * quantite), 0) FROM reserve WHERE quantite > 0")
+    v = c.fetchone()[0] or 0.0
+    conn.close()
+    return float(v)
+
+def ajouter_a_reserve(articles):
+    """Ajoute des articles à la réserve (cumule les quantités).
+    articles : liste de dicts {id, nom, categorie, prix, qte}."""
+    conn = get_connection()
+    c = conn.cursor()
+    for a in articles:
+        pid = a["id"]
+        qte = int(a.get("qte", 0) or 0)
+        if qte <= 0:
+            continue
+        c.execute("SELECT quantite FROM reserve WHERE produit_id=?", (pid,))
+        row = c.fetchone()
+        if row:
+            c.execute("UPDATE reserve SET quantite = quantite + ? WHERE produit_id=?",
+                      (qte, pid))
+        else:
+            c.execute("INSERT INTO reserve (produit_id, nom, categorie, prix, quantite) "
+                      "VALUES (?,?,?,?,?)",
+                      (pid, a["nom"], a.get("categorie", ""), a["prix"], qte))
+    conn.commit()
+    conn.close()
+
+def definir_reserve(articles):
+    """Remplace entièrement la réserve par la liste fournie
+    (utilisé pour enregistrer le reliquat après une répartition)."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM reserve")
+    for a in articles:
+        qte = int(a.get("qte", 0) or 0)
+        if qte <= 0:
+            continue
+        c.execute("INSERT INTO reserve (produit_id, nom, categorie, prix, quantite) "
+                  "VALUES (?,?,?,?,?)",
+                  (a["id"], a["nom"], a.get("categorie", ""), a["prix"], qte))
+    conn.commit()
+    conn.close()
+
+def vider_reserve():
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM reserve")
+    conn.commit()
+    conn.close()
+
+def modifier_qte_reserve(produit_id, nouvelle_qte):
+    """Change la quantité d'un article de la réserve. Si <= 0, le supprime."""
+    conn = get_connection()
+    c = conn.cursor()
+    if nouvelle_qte is None or int(nouvelle_qte) <= 0:
+        c.execute("DELETE FROM reserve WHERE produit_id=?", (produit_id,))
+    else:
+        c.execute("UPDATE reserve SET quantite=? WHERE produit_id=?",
+                  (int(nouvelle_qte), produit_id))
+    conn.commit()
+    conn.close()
+
+def supprimer_de_reserve(produit_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM reserve WHERE produit_id=?", (produit_id,))
+    conn.commit()
+    conn.close()
+
+
+# ─────────────────────────────────────────────
+# « MON STOCK » : stock perso en cellule (widget quotidien)
+# ─────────────────────────────────────────────
+def mon_stock_get():
+    """Liste de dicts {id, nom, categorie, prix, qte, peremption} — quantités > 0."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT produit_id, nom, categorie, prix, quantite, "
+              "COALESCE(peremption,'') FROM mon_stock WHERE quantite > 0")
+    rows = c.fetchall()
+    conn.close()
+    return [{"id": r[0], "nom": r[1], "categorie": r[2],
+             "prix": r[3], "qte": r[4], "peremption": r[5]} for r in rows]
+
+
+def mon_stock_definir_peremption(produit_id, date_str):
+    """Définit/efface la date de péremption (format 'YYYY-MM-DD', '' pour effacer)."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE mon_stock SET peremption=? WHERE produit_id=?",
+              (date_str or "", produit_id))
+    conn.commit()
+    conn.close()
+
+
+def get_peremptions_proches(jours=7):
+    """Articles périmés ou qui périment dans <= `jours` jours.
+    Retourne des dicts {id, nom, qte, peremption, jours_restants} (négatif = périmé)."""
+    import datetime as _dt
+    today = _dt.date.today()
+    res = []
+    for a in mon_stock_get():
+        p = (a.get("peremption") or "").strip()
+        if not p:
+            continue
+        try:
+            d = _dt.datetime.strptime(p, "%Y-%m-%d").date()
+        except Exception:
+            continue
+        reste = (d - today).days
+        if reste <= jours:
+            res.append({"id": a["id"], "nom": a["nom"], "qte": a["qte"],
+                        "peremption": p, "jours_restants": reste})
+    res.sort(key=lambda x: x["jours_restants"])
+    return res
+
+
+def mon_stock_total():
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT COALESCE(SUM(prix * quantite), 0) FROM mon_stock WHERE quantite > 0")
+    v = c.fetchone()[0] or 0.0
+    conn.close()
+    return float(v)
+
+
+def mon_stock_ajouter(articles):
+    """Ajoute des articles à Mon stock (cumule les quantités).
+    articles : liste de dicts {id, nom, categorie, prix, qte}."""
+    conn = get_connection()
+    c = conn.cursor()
+    for a in articles:
+        pid = a.get("id")
+        if not pid:
+            continue
+        qte = int(a.get("qte", 0) or 0)
+        if qte <= 0:
+            continue
+        c.execute("SELECT quantite FROM mon_stock WHERE produit_id=?", (pid,))
+        row = c.fetchone()
+        if row:
+            c.execute("UPDATE mon_stock SET quantite = quantite + ? WHERE produit_id=?",
+                      (qte, pid))
+        else:
+            c.execute("INSERT INTO mon_stock (produit_id, nom, categorie, prix, quantite) "
+                      "VALUES (?,?,?,?,?)",
+                      (pid, a.get("nom", pid), a.get("categorie", ""),
+                       float(a.get("prix", 0) or 0), qte))
+    conn.commit()
+    conn.close()
+
+
+def mon_stock_modifier_qte(produit_id, nouvelle_qte):
+    conn = get_connection()
+    c = conn.cursor()
+    if nouvelle_qte is None or int(nouvelle_qte) <= 0:
+        c.execute("DELETE FROM mon_stock WHERE produit_id=?", (produit_id,))
+    else:
+        c.execute("UPDATE mon_stock SET quantite=? WHERE produit_id=?",
+                  (int(nouvelle_qte), produit_id))
+    conn.commit()
+    conn.close()
+
+
+def mon_stock_vider():
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM mon_stock")
+    conn.commit()
+    conn.close()
+
+
+def exporter_mon_stock(chemin_fichier):
+    """Exporte Mon stock (+ les choix de rappel) dans un fichier JSON.
+    Permet de transférer le stock d'une machine à l'autre sans tout retaper."""
+    import datetime as _dt
+    arts = mon_stock_get()
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT produit_id, actif FROM stock_rappel")
+    rappels = {r[0]: int(r[1]) for r in c.fetchall()}
+    conn.close()
+    for a in arts:
+        if a["id"] in rappels:
+            a["rappel"] = rappels[a["id"]]
+    data = {"format": "cantine_mon_stock", "version": 1,
+            "date": _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "articles": arts}
+    with open(chemin_fichier, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return len(arts)
+
+
+def importer_mon_stock(chemin_fichier, remplacer=True):
+    """Importe Mon stock depuis un fichier JSON d'export.
+    remplacer=True : le stock importé REMPLACE le stock actuel.
+    remplacer=False : les quantités s'AJOUTENT au stock actuel.
+    Retourne le nombre d'articles importés. Lève ValueError si le fichier est
+    invalide."""
+    with open(chemin_fichier, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict) or data.get("format") != "cantine_mon_stock":
+        raise ValueError("Ce fichier n'est pas un export de stock valide.")
+    arts = data.get("articles", [])
+    conn = get_connection()
+    c = conn.cursor()
+    if remplacer:
+        c.execute("DELETE FROM mon_stock")
+    for a in arts:
+        pid = a.get("id")
+        if not pid:
+            continue
+        try:
+            q = int(a.get("qte", 0) or 0)
+        except (TypeError, ValueError):
+            q = 0
+        if q <= 0:
+            continue
+        nom = a.get("nom", pid)
+        cat = a.get("categorie", "")
+        prix = float(a.get("prix", 0) or 0)
+        perem = (a.get("peremption", "") or "")
+        if remplacer:
+            c.execute("INSERT OR REPLACE INTO mon_stock "
+                      "(produit_id, nom, categorie, prix, quantite, peremption) "
+                      "VALUES (?,?,?,?,?,?)", (pid, nom, cat, prix, q, perem))
+        else:
+            c.execute("SELECT quantite FROM mon_stock WHERE produit_id=?", (pid,))
+            row = c.fetchone()
+            if row:
+                c.execute("UPDATE mon_stock SET quantite = quantite + ? WHERE produit_id=?",
+                          (q, pid))
+                if perem:
+                    c.execute("UPDATE mon_stock SET peremption=? WHERE produit_id=?",
+                              (perem, pid))
+            else:
+                c.execute("INSERT INTO mon_stock "
+                          "(produit_id, nom, categorie, prix, quantite, peremption) "
+                          "VALUES (?,?,?,?,?,?)", (pid, nom, cat, prix, q, perem))
+        # choix de rappel (apprentissage) s'il est présent dans l'export
+        if "rappel" in a:
+            try:
+                c.execute("INSERT OR REPLACE INTO stock_rappel VALUES (?,?)",
+                          (pid, 1 if int(a["rappel"]) else 0))
+            except Exception:
+                pass
+    conn.commit()
+    conn.close()
+    return sum(1 for a in arts if int(a.get("qte", 0) or 0) > 0)
+
+
+def retirer_du_stock(produit_id, qte=1, journaliser=True):
+    """Retire `qte` d'un article de MON STOCK et journalise le retrait.
+    Ne descend jamais sous 0 ; supprime la ligne si la quantité tombe à 0.
+    Retourne la quantité réellement retirée (0 si absent/épuisé)."""
+    import datetime as _dt
+    try:
+        qte = int(qte)
+    except (TypeError, ValueError):
+        qte = 1
+    if qte <= 0:
+        return 0
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT nom, categorie, prix, quantite FROM mon_stock WHERE produit_id=?",
+              (produit_id,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return 0
+    nom, categorie, prix, dispo = row[0], row[1], row[2], int(row[3] or 0)
+    retire = min(qte, dispo)
+    if retire <= 0:
+        conn.close()
+        return 0
+    reste = dispo - retire
+    if reste <= 0:
+        c.execute("DELETE FROM mon_stock WHERE produit_id=?", (produit_id,))
+    else:
+        c.execute("UPDATE mon_stock SET quantite=? WHERE produit_id=?", (reste, produit_id))
+    if journaliser:
+        c.execute("INSERT INTO stock_retraits "
+                  "(date, produit_id, nom, categorie, prix, quantite) "
+                  "VALUES (?,?,?,?,?,?)",
+                  (_dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                   produit_id, nom, categorie, prix, retire))
+    conn.commit()
+    conn.close()
+    return retire
+
+
+def get_retraits(jour=None, limite=500):
+    """Journal des retraits de Mon stock. `jour`='YYYY-MM-DD' ou None pour tout."""
+    conn = get_connection()
+    c = conn.cursor()
+    if jour:
+        c.execute("SELECT date, produit_id, nom, categorie, prix, quantite "
+                  "FROM stock_retraits WHERE date LIKE ? "
+                  "ORDER BY id DESC LIMIT ?", (f"{jour}%", limite))
+    else:
+        c.execute("SELECT date, produit_id, nom, categorie, prix, quantite "
+                  "FROM stock_retraits ORDER BY id DESC LIMIT ?", (limite,))
+    rows = c.fetchall()
+    conn.close()
+    return [{"date": r[0], "produit_id": r[1], "nom": r[2], "categorie": r[3],
+             "prix": r[4], "quantite": r[5]} for r in rows]
+
+
+def annuler_dernier_retrait():
+    """Annule le dernier retrait : remet la quantité dans Mon stock et supprime
+    la ligne de journal. Retourne (nom, qte) ou None."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id, produit_id, nom, categorie, prix, quantite "
+              "FROM stock_retraits ORDER BY id DESC LIMIT 1")
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return None
+    rid, pid, nom, categorie, prix, qte = row
+    c.execute("SELECT quantite FROM mon_stock WHERE produit_id=?", (pid,))
+    ex = c.fetchone()
+    if ex:
+        c.execute("UPDATE mon_stock SET quantite = quantite + ? WHERE produit_id=?",
+                  (int(qte), pid))
+    else:
+        c.execute("INSERT INTO mon_stock (produit_id, nom, categorie, prix, quantite) "
+                  "VALUES (?,?,?,?,?)", (pid, nom, categorie, prix, int(qte)))
+    c.execute("DELETE FROM stock_retraits WHERE id=?", (rid,))
+    conn.commit()
+    conn.close()
+    return (nom, int(qte))
+
+
+# ─────────────────────────────────────────────
+# LIVRAISONS ATTENDUES (réception à confirmer le jour de livraison)
+# ─────────────────────────────────────────────
+_JOURS_SEM = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+
+
+def _date_livraison_prevue(categorie, creation=None):
+    """Date de livraison prévue (objet date) pour une catégorie : ramassage +
+    délai de distribution, ajusté sur le jour hebdo de la catégorie."""
+    import datetime as _dt
+    p = get_parametres()
+    creation = creation or _dt.date.today()
+    if isinstance(creation, _dt.datetime):
+        creation = creation.date()
+    ram_nom = p.get("ramassage_jour", "Mercredi")
+    ram_idx = _JOURS_SEM.index(ram_nom) if ram_nom in _JOURS_SEM else 2
+    ramassage = creation + _dt.timedelta(days=(ram_idx - creation.weekday()) % 7)
+    try:
+        delai = int(p.get("distribution_delai_semaines", "3") or 0)
+    except ValueError:
+        delai = 3
+    lundi = ramassage - _dt.timedelta(days=ramassage.weekday())
+    debut = lundi + _dt.timedelta(weeks=delai)
+    jour_cat = p.get(f"livraison_cat_{categorie}", "")
+    if jour_cat in _JOURS_SEM:
+        return debut + _dt.timedelta(days=(_JOURS_SEM.index(jour_cat) - debut.weekday()) % 7)
+    return debut
+
+
+def _creer_reception_si_concerne(nom, lignes, est_creance, categorie,
+                                 nom_creance, date_creance, source_uid):
+    """Crée une livraison attendue si le bon est à mon nom (cantine) ou est une
+    créance. Sinon ne fait rien."""
+    import datetime as _dt
+    try:
+        mon_nom = (get_parametres().get("nom", "") or "").strip().upper()
+    except Exception:
+        mon_nom = ""
+    nom_bon = (nom or "").strip().upper()
+    if est_creance:
+        typ = "creance"
+        personne = (nom_creance or nom or "").strip()
+    elif mon_nom and nom_bon == mon_nom:
+        typ = "cantine"
+        personne = ""
+    else:
+        return None
+    # Date prévue : date_creance si fournie (créance), sinon calcul catégorie
+    dprev = None
+    if date_creance:
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                dprev = _dt.datetime.strptime(date_creance.strip(), fmt).date().strftime("%Y-%m-%d")
+                break
+            except Exception:
+                dprev = None
+    if not dprev:
+        dprev = _date_livraison_prevue(categorie).strftime("%Y-%m-%d")
+
+    arts = []
+    for l in lignes:
+        try:
+            q = int(l.get("qte", 0) or 0)
+        except (TypeError, ValueError):
+            q = 0
+        if q <= 0:
+            continue
+        arts.append((l.get("id"), l.get("nom", ""), float(l.get("prix", 0) or 0), q))
+    if not arts:
+        return None
+    return creer_reception_attendue(typ, source_uid, personne, categorie, dprev, arts)
+
+
+def creer_reception_attendue(typ, source_uid, personne, categorie, date_prevue, lignes):
+    """lignes : liste de tuples (produit_id, nom, prix, qte_attendue)."""
+    import datetime as _dt
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""INSERT INTO receptions_attendues
+        (type, source_uid, personne, categorie, date_prevue, statut, date_creation)
+        VALUES (?,?,?,?,?, 'attente', ?)""",
+              (typ, source_uid, personne, categorie, date_prevue,
+               _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    rid = c.lastrowid
+    for pid, nom, prix, q in lignes:
+        c.execute("""INSERT INTO receptions_lignes
+            (reception_id, produit_id, nom, prix, qte_attendue, qte_recue)
+            VALUES (?,?,?,?,?,0)""", (rid, pid, nom, prix, int(q)))
+    conn.commit()
+    conn.close()
+    return rid
+
+
+def get_receptions_dues(date_max=None):
+    """Réceptions en attente dont la date prévue est <= date_max (par défaut
+    aujourd'hui). Retourne une liste de dicts avec leurs lignes."""
+    import datetime as _dt
+    date_max = date_max or _dt.date.today().strftime("%Y-%m-%d")
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""SELECT id, type, source_uid, personne, categorie, date_prevue
+                 FROM receptions_attendues
+                 WHERE statut='attente' AND date_prevue <= ?
+                 ORDER BY date_prevue, id""", (date_max,))
+    recs = c.fetchall()
+    res = []
+    for r in recs:
+        rid = r[0]
+        c.execute("""SELECT id, produit_id, nom, prix, qte_attendue
+                     FROM receptions_lignes WHERE reception_id=?""", (rid,))
+        lignes = [{"ligne_id": x[0], "id": x[1], "nom": x[2], "prix": x[3],
+                   "qte_attendue": x[4]} for x in c.fetchall()]
+        res.append({"id": rid, "type": r[1], "source_uid": r[2], "personne": r[3],
+                    "categorie": r[4], "date_prevue": r[5], "lignes": lignes})
+    conn.close()
+    return res
+
+
+def get_receptions_attente_count():
+    conn = get_connection()
+    c = conn.cursor()
+    import datetime as _dt
+    today = _dt.date.today().strftime("%Y-%m-%d")
+    c.execute("SELECT COUNT(*) FROM receptions_attendues "
+              "WHERE statut='attente' AND date_prevue <= ?", (today,))
+    n = c.fetchone()[0]
+    conn.close()
+    return n
+
+
+def confirmer_reception(reception_id, recu_par_ligne):
+    """Confirme une réception : `recu_par_ligne` = {ligne_id: qte_recue}.
+    Ajoute les quantités reçues à Mon stock.
+    - CANTINE : ce qui n'est pas reçu est OUBLIÉ ; la réception passe 'recu'.
+    - CRÉANCE : ce qui n'est pas reçu RESTE DÛ (la réception reste 'attente' avec
+      les quantités manquantes, pour être redemandée)."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT type, categorie FROM receptions_attendues WHERE id=?", (reception_id,))
+    row = c.fetchone()
+    typ = row[0] if row else "cantine"
+    categorie = row[1] if row else ""
+    c.execute("SELECT id, produit_id, nom, prix, qte_attendue "
+              "FROM receptions_lignes WHERE reception_id=?", (reception_id,))
+    lignes = c.fetchall()
+    articles = []
+    restes = []   # (ligne_id, pid, nom, prix, reste)
+    for ligne_id, pid, nom, prix, qa in lignes:
+        q = recu_par_ligne.get(ligne_id, recu_par_ligne.get(str(ligne_id), 0))
+        try:
+            q = int(q)
+        except (TypeError, ValueError):
+            q = 0
+        q = max(0, min(q, int(qa or 0)))
+        if q > 0:
+            articles.append({"id": pid, "nom": nom, "categorie": categorie,
+                             "prix": float(prix or 0), "qte": q})
+        reste = int(qa or 0) - q
+        restes.append((ligne_id, pid, nom, prix, reste))
+
+    total_reste = sum(r[4] for r in restes)
+    if typ == "creance" and total_reste > 0:
+        # Le manquant reste dû : on garde la réception en attente avec les restes
+        for ligne_id, pid, nom, prix, reste in restes:
+            if reste > 0:
+                c.execute("UPDATE receptions_lignes SET qte_attendue=?, qte_recue=0 "
+                          "WHERE id=?", (reste, ligne_id))
+            else:
+                c.execute("DELETE FROM receptions_lignes WHERE id=?", (ligne_id,))
+        # statut reste 'attente' -> sera redemandée
+    else:
+        for ligne_id, pid, nom, prix, reste in restes:
+            qa_recue = 0
+            # note le reçu (qte_attendue - reste)
+            c.execute("SELECT qte_attendue FROM receptions_lignes WHERE id=?", (ligne_id,))
+            rr = c.fetchone()
+            qa_val = int(rr[0]) if rr else 0
+            c.execute("UPDATE receptions_lignes SET qte_recue=? WHERE id=?",
+                      (qa_val - reste, ligne_id))
+        c.execute("UPDATE receptions_attendues SET statut='recu' WHERE id=?", (reception_id,))
+    conn.commit()
+    conn.close()
+    if articles:
+        mon_stock_ajouter(articles)
+    return len(articles)
+
+
+def get_receptions(inclure_recues=False):
+    """Toutes les livraisons attendues (et reçues si demandé), avec leurs lignes.
+    Triées par date prévue. Pour l'écran « Livraisons à venir »."""
+    conn = get_connection()
+    c = conn.cursor()
+    if inclure_recues:
+        c.execute("""SELECT id, type, source_uid, personne, categorie, date_prevue, statut
+                     FROM receptions_attendues ORDER BY date_prevue, id""")
+    else:
+        c.execute("""SELECT id, type, source_uid, personne, categorie, date_prevue, statut
+                     FROM receptions_attendues WHERE statut='attente'
+                     ORDER BY date_prevue, id""")
+    recs = c.fetchall()
+    res = []
+    for r in recs:
+        c.execute("""SELECT id, produit_id, nom, prix, qte_attendue, qte_recue
+                     FROM receptions_lignes WHERE reception_id=?""", (r[0],))
+        lignes = [{"ligne_id": x[0], "id": x[1], "nom": x[2], "prix": x[3],
+                   "qte_attendue": x[4], "qte_recue": x[5]} for x in c.fetchall()]
+        res.append({"id": r[0], "type": r[1], "source_uid": r[2], "personne": r[3],
+                    "categorie": r[4], "date_prevue": r[5], "statut": r[6],
+                    "lignes": lignes})
+    conn.close()
+    return res
+
+
+def supprimer_reception(reception_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM receptions_lignes WHERE reception_id=?", (reception_id,))
+    c.execute("DELETE FROM receptions_attendues WHERE id=?", (reception_id,))
+    conn.commit()
+    conn.close()
+
+
+def _parse_date(s):
+    import datetime as _dt
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+        try:
+            return _dt.datetime.strptime((s or "").strip(), fmt).date()
+        except Exception:
+            pass
+    return None
+
+
+def creer_receptions_retroactives():
+    """(Re)construit les livraisons attendues depuis les bons à MON nom + les
+    créances déjà saisis.
+    - Créance : date = sa « date estimée » (date_creance) ; incluse tant qu'elle
+      n'est pas récupérée (soldée), même si la date est passée.
+    - Cantine : date calculée depuis la date du bon ; incluse seulement si à venir.
+    Les réceptions en attente NON commencées sont recalculées (dates corrigées) ;
+    celles déjà partiellement reçues sont préservées. Retourne le nombre traité."""
+    import datetime as _dt
+    try:
+        mon_nom = (get_parametres().get("nom", "") or "").strip().upper()
+    except Exception:
+        mon_nom = ""
+    today = _dt.date.today()
+    conn = get_connection()
+    c = conn.cursor()
+
+    # On repart propre : on supprime les réceptions EN ATTENTE non entamées
+    # (aucune quantité déjà reçue). Celles partiellement reçues sont gardées.
+    c.execute("""SELECT id FROM receptions_attendues WHERE statut='attente'
+                 AND id NOT IN (SELECT DISTINCT reception_id FROM receptions_lignes
+                                WHERE qte_recue > 0)""")
+    a_suppr = [r[0] for r in c.fetchall()]
+    for rid in a_suppr:
+        c.execute("DELETE FROM receptions_lignes WHERE reception_id=?", (rid,))
+        c.execute("DELETE FROM receptions_attendues WHERE id=?", (rid,))
+    conn.commit()
+
+    # uids encore couverts (reçus ou partiellement reçus) -> on n'y touche pas
+    c.execute("SELECT DISTINCT source_uid FROM receptions_attendues")
+    deja = {x[0] for x in c.fetchall() if x[0]}
+
+    try:
+        c.execute("""SELECT id, date, categorie, nom, est_creance, nom_creance,
+                            date_creance, uid, creance_soldee FROM bons""")
+        bons = c.fetchall()
+    except Exception:
+        c.execute("""SELECT id, date, categorie, nom, est_creance, nom_creance,
+                            date_creance, uid FROM bons""")
+        bons = [r + (0,) for r in c.fetchall()]
+    conn.close()
+
+    cree = 0
+    for bid, date_bon, categorie, nom, est_cr, nom_cr, date_cr, uid, soldee in bons:
+        uid = uid or f"legacy-{bid}"
+        if uid in deja:
+            continue
+        est_creance = bool(est_cr)
+        nom_u = (nom or "").strip().upper()
+        if not (est_creance or (mon_nom and nom_u == mon_nom)):
+            continue
+
+        if est_creance:
+            # déjà récupérée -> ignorer
+            if int(soldee or 0) == 1:
+                continue
+            # date = date estimée de la créance (telle qu'affichée dans Créances)
+            dprev_d = _parse_date(date_cr)
+            if not dprev_d:
+                base = _parse_date(date_bon)
+                dprev_d = _date_livraison_prevue(categorie, base) if base \
+                    else _date_livraison_prevue(categorie)
+            # créance non récupérée : on l'inclut même si la date est passée
+        else:
+            # cantine : date calculée depuis la date du bon
+            base = _parse_date(date_bon)
+            dprev_d = _date_livraison_prevue(categorie, base) if base \
+                else _date_livraison_prevue(categorie)
+            # seulement les cantines à venir (pas celles déjà livrées)
+            if dprev_d < today:
+                continue
+
+        # lignes du bon
+        conn2 = get_connection(); c2 = conn2.cursor()
+        c2.execute("SELECT produit_id, designation, prix, quantite "
+                   "FROM lignes_bon WHERE bon_id=?", (bid,))
+        arts = [(r[0], r[1], float(r[2] or 0), int(r[3] or 0))
+                for r in c2.fetchall() if int(r[3] or 0) > 0]
+        conn2.close()
+        if not arts:
+            continue
+        typ = "creance" if est_creance else "cantine"
+        personne = (nom_cr or nom or "").strip() if est_creance else ""
+        creer_reception_attendue(typ, uid, personne, categorie,
+                                 dprev_d.strftime("%Y-%m-%d"), arts)
+        cree += 1
+    return cree
+
+
+# Catégories entièrement consommables (on rachète toujours)
+_CATS_CONSO = {"BOISSONS", "PRODUITS LAITIERS", "FRUITS & LEGUMES", "CASHER",
+               "ALIMENTAIRE", "PRODUITS FRAIS", "HALAL", "PATISSERIES", "TABAC"}
+# Mots-clés d'objets DURABLES (achetés une fois). Détection par mot entier
+# (frontières) pour éviter les faux positifs (ex. « oiseau » ne contient pas
+# « seau » en tant que mot). Les articles « Recharge ... » sont, eux, consommables.
+_DURABLE_MOTS = [
+    "balai", "manche", "pelle", "balayette", "poubelle", "seau", "cuvette",
+    "serpillere", "serpillère", "sechoir", "séchoir", "cintre", "casserole",
+    "poele", "poêle", "couvercle", "saladier", "passoire", "econome", "économe",
+    "rape", "râpe", "ouvre-boites", "ouvre boites", "ouvre boîtes", "presse",
+    "egouttoir", "égouttoir", "hermetiques", "hermétiques", "bol", "mug",
+    "verre", "assiette", "couteau", "cuillere", "cuillère", "fourchette",
+    "louche", "spatule", "fouet", "maryse", "abattant", "lampe", "cordon",
+    "isolante", "cafetiere", "cafetière", "bouilloire", "ventilateur", "reveil",
+    "réveil", "faitout", "tondeuse", "casque", "montre", "calculatrice",
+    "ciseaux", "miroir", "peigne", "quies", "rouleur", "blaireau", "cendrier",
+    "diffuseur", "saladier", "tarot",
+    # expressions (plusieurs mots)
+    "kit wc", "brosse wc", "bloc 3 prises", "porte filtre", "table de cuisson",
+    "brosse a cheveux", "brosse à cheveux", "coupe ongles", "lime a ongles",
+    "lime à ongles", "jeu de 54", "jeu de tarot", "necessaire couture",
+    "nécessaire couture", "machine a garnir", "machine à garnir",
+    "lampe de chevet", "boule quies",
+    # compléments (objets achetés une seule fois) — affinage des rappels.
+    # (volontairement SANS mots ambigus comme « serviette » ou « gobelet » qui
+    #  peuvent désigner un consommable.)
+    "gourde", "thermos", "entonnoir", "decapsuleur", "décapsuleur",
+    "tire-bouchon", "tire bouchon", "chargeur", "adaptateur", "multiprise",
+    "rallonge", "radio", "ecouteurs", "écouteurs", "lunettes", "parapluie",
+    "trousse", "plateau", "boites de rangement", "boîtes de rangement",
+    "porte-savon", "porte savon", "coussin", "oreiller", "chausson",
+    "chaussons", "pantoufle", "pince a linge", "pince à linge", "etendoir",
+    "étendoir", "balance", "infuseur", "verre doseur", "shaker",
+]
+import re as _re
+_DURABLE_RE = _re.compile(
+    r"(?<!\w)(?:" + "|".join(_re.escape(m) for m in _DURABLE_MOTS) + r")(?!\w)",
+    _re.IGNORECASE)
+
+
+def _rappel_override(pid):
+    """Retourne True/False si l'utilisateur a forcé un choix, sinon None."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT actif FROM stock_rappel WHERE produit_id=?", (pid,))
+    r = c.fetchone()
+    conn.close()
+    if r is None:
+        return None
+    return bool(r[0])
+
+
+def est_durable(nom, categorie):
+    """Objet durable / acheté une fois (balai, boîtes, économe, casserole, …) ou
+    revue : ne doit PAS être traité comme du stock à consommer. Détection par
+    NOM (mot entier, indépendante de la catégorie) + catégorie REVUES.
+    Les articles « Recharge … » sont des consommables (jamais durables)."""
+    n = (nom or "").strip().lower()
+    if n.startswith("recharge"):
+        return False
+    cat = (categorie or "").strip().upper()
+    if cat == "REVUES":
+        return True
+    return bool(_DURABLE_RE.search(n))
+
+
+def est_consommable(pid, nom, categorie):
+    """Pour les RAPPELS de rachat : un durable ne déclenche jamais de rappel ;
+    sinon l'override manuel (apprentissage) prime ; par défaut oui."""
+    if est_durable(nom, categorie):
+        return False
+    ov = _rappel_override(pid)
+    if ov is not None:
+        return ov
+    return True
+
+
+def definir_rappel(pid, actif):
+    """Force le rappel pour un article : actif True (me rappeler) / False (ne plus)."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO stock_rappel VALUES (?,?)", (pid, 1 if actif else 0))
+    conn.commit()
+    conn.close()
+
+
+def effacer_rappel_override(pid):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM stock_rappel WHERE produit_id=?", (pid,))
+    conn.commit()
+    conn.close()
+
+
+def get_stock_bas(seuil=None):
+    """Articles de Mon stock à racheter : quantité <= seuil (défaut paramètre
+    stock_seuil_bas, 2) ET considérés comme consommables (rappel intelligent :
+    un objet durable comme un balai n'est jamais proposé au rachat)."""
+    if seuil is None:
+        try:
+            seuil = int(get_parametres().get("stock_seuil_bas", "2") or 2)
+        except ValueError:
+            seuil = 2
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT produit_id, nom, categorie, prix, quantite FROM mon_stock "
+              "WHERE quantite > 0 AND quantite <= ? ORDER BY quantite, nom", (seuil,))
+    rows = c.fetchall()
+    conn.close()
+    res = []
+    for r in rows:
+        if est_consommable(r[0], r[1], r[2]):
+            res.append({"id": r[0], "nom": r[1], "categorie": r[2],
+                        "prix": r[3], "qte": r[4]})
+    return res
+
+
+# ─────────────────────────────────────────────
+# REMBOURSEMENTS (articles de mes bons à rembourser)
+# ─────────────────────────────────────────────
+def get_bons_mon_nom(limite=300):
+    """Mes bons perso (nom == paramètre 'nom', hors créances), récents d'abord,
+    avec leurs lignes et la date de livraison prévue. Pour choisir des articles
+    à rembourser."""
+    try:
+        mon_nom = (get_parametres().get("nom", "") or "").strip().upper()
+    except Exception:
+        mon_nom = ""
+    if not mon_nom:
+        return []
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""SELECT id, uid, date, categorie FROM bons
+                 WHERE est_creance=0 AND UPPER(TRIM(nom))=?
+                 ORDER BY id DESC LIMIT ?""", (mon_nom, limite))
+    bons = c.fetchall()
+    res = []
+    for bid, uid, date_bon, categorie in bons:
+        c.execute("SELECT produit_id, designation, prix, quantite "
+                  "FROM lignes_bon WHERE bon_id=?", (bid,))
+        lignes = [{"id": r[0], "nom": r[1], "prix": float(r[2] or 0), "qte": int(r[3] or 0)}
+                  for r in c.fetchall()]
+        # date de livraison : réception liée si elle existe, sinon calcul
+        c.execute("SELECT date_prevue FROM receptions_attendues WHERE source_uid=? LIMIT 1",
+                  (uid or f"legacy-{bid}",))
+        rr = c.fetchone()
+        if rr:
+            date_liv = rr[0]
+        else:
+            import datetime as _dt
+            date_liv = None
+            for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+                try:
+                    base = _dt.datetime.strptime((date_bon or "").strip(), fmt).date()
+                    date_liv = _date_livraison_prevue(categorie, base).strftime("%Y-%m-%d")
+                    break
+                except Exception:
+                    date_liv = None
+            if not date_liv:
+                date_liv = _date_livraison_prevue(categorie).strftime("%Y-%m-%d")
+        res.append({"id": bid, "uid": uid, "date": date_bon, "categorie": categorie,
+                    "date_livraison": date_liv, "lignes": lignes})
+    conn.close()
+    return res
+
+
+def ajouter_remboursement(articles):
+    """articles : liste de dicts {produit_id|id, nom, categorie, prix, quantite,
+    date_commande, date_livraison, source_uid}."""
+    import datetime as _dt
+    now = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = get_connection()
+    c = conn.cursor()
+    for a in articles:
+        pid = a.get("produit_id", a.get("id"))
+        q = int(a.get("quantite", a.get("qte", 0)) or 0)
+        if q <= 0:
+            continue
+        c.execute("""INSERT INTO remboursements
+            (produit_id, nom, categorie, prix, quantite, date_commande,
+             date_livraison, source_uid, statut, date_ajout, date_remboursement)
+            VALUES (?,?,?,?,?,?,?,?, 'a_rembourser', ?, '')""",
+            (pid, a.get("nom", ""), a.get("categorie", ""), float(a.get("prix", 0) or 0),
+             q, a.get("date_commande", ""), a.get("date_livraison", ""),
+             a.get("source_uid", ""), now))
+    conn.commit()
+    conn.close()
+
+
+def get_remboursements(statut=None):
+    """Liste de dicts. statut : 'a_rembourser', 'rembourse', ou None (tous)."""
+    conn = get_connection()
+    c = conn.cursor()
+    base = ("SELECT id, produit_id, nom, categorie, prix, quantite, date_commande, "
+            "date_livraison, source_uid, statut, date_ajout, date_remboursement "
+            "FROM remboursements")
+    if statut:
+        c.execute(base + " WHERE statut=? ORDER BY id DESC", (statut,))
+    else:
+        c.execute(base + " ORDER BY statut, id DESC")
+    rows = c.fetchall()
+    conn.close()
+    cols = ["id", "produit_id", "nom", "categorie", "prix", "quantite",
+            "date_commande", "date_livraison", "source_uid", "statut",
+            "date_ajout", "date_remboursement"]
+    return [dict(zip(cols, r)) for r in rows]
+
+
+def valider_remboursement(remb_id):
+    import datetime as _dt
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE remboursements SET statut='rembourse', date_remboursement=? "
+              "WHERE id=?", (_dt.date.today().strftime("%Y-%m-%d"), remb_id))
+    conn.commit()
+    conn.close()
+
+
+def supprimer_remboursement(remb_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM remboursements WHERE id=?", (remb_id,))
+    conn.commit()
+    conn.close()
+
+
+def remboursements_a_faire_count():
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM remboursements WHERE statut='a_rembourser'")
+    n = c.fetchone()[0]
+    conn.close()
+    return n
+
+
+# ─────────────────────────────────────────────
+# Liste hygiène mensuelle (personnalisable)
+# ─────────────────────────────────────────────
+def get_hygiene_liste():
+    """Retourne la liste hygiène jointe au catalogue, triée par ordre.
+    Chaque élément : {id, nom, categorie, prix, groupe, qte_par_pers}."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""SELECT h.produit_id, p.nom, p.categorie, p.prix, h.groupe,
+                        h.qte_par_pers, h.ordre
+                 FROM hygiene_liste h
+                 JOIN produits p ON p.id = h.produit_id
+                 ORDER BY h.groupe DESC, h.ordre""")
+    rows = c.fetchall()
+    conn.close()
+    return [{"id": r[0], "nom": r[1], "categorie": r[2], "prix": r[3],
+             "groupe": r[4], "qte_par_pers": r[5]} for r in rows]
+
+def hygiene_definir_qte(produit_id, qte_par_pers):
+    """Change la quantité par personne d'un produit ; <=0 supprime la ligne."""
+    conn = get_connection()
+    c = conn.cursor()
+    if qte_par_pers is None or int(qte_par_pers) <= 0:
+        c.execute("DELETE FROM hygiene_liste WHERE produit_id=?", (produit_id,))
+    else:
+        c.execute("UPDATE hygiene_liste SET qte_par_pers=? WHERE produit_id=?",
+                  (int(qte_par_pers), produit_id))
+    conn.commit()
+    conn.close()
+
+def hygiene_supprimer(produit_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM hygiene_liste WHERE produit_id=?", (produit_id,))
+    conn.commit()
+    conn.close()
+
+def hygiene_ajouter(produit_id, groupe, qte_par_pers):
+    """Ajoute (ou met à jour) un produit dans la liste hygiène."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT COALESCE(MAX(ordre),0)+1 FROM hygiene_liste")
+    ordre = c.fetchone()[0]
+    c.execute("SELECT produit_id FROM hygiene_liste WHERE produit_id=?", (produit_id,))
+    if c.fetchone():
+        c.execute("UPDATE hygiene_liste SET groupe=?, qte_par_pers=? WHERE produit_id=?",
+                  (groupe, int(qte_par_pers), produit_id))
+    else:
+        c.execute("INSERT INTO hygiene_liste VALUES (?,?,?,?)",
+                  (produit_id, groupe, int(qte_par_pers), ordre))
     conn.commit()
     conn.close()
