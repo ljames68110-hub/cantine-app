@@ -1832,6 +1832,133 @@ class ParametresWindow(tk.Toplevel):
         nb.add(tab_cal, text="  📆  Calendrier  ")
         self._build_calendrier(tab_cal, params)
 
+        # ── Onglet 8 : Données partagées ────────────────────────────────
+        tab_part = tk.Frame(nb, bg=DARK_BG)
+        nb.add(tab_part, text="  🔗  Données partagées  ")
+        self._build_donnees_partagees(tab_part)
+
+    def _build_donnees_partagees(self, parent):
+        """Onglet : stocker la base sur un disque partagé (ex. D:\\) pour que
+        les 2 systèmes d'un même PC (double boot) aient les mêmes données,
+        sans jamais rien importer."""
+        frm = tk.Frame(parent, bg=DARK_BG, padx=24, pady=16)
+        frm.pack(fill="both", expand=True)
+
+        tk.Label(frm, text="🔗  Partager les données entre mes systèmes",
+                 font=("Helvetica", 13, "bold"), bg=DARK_BG, fg=TEXT).pack(anchor="w")
+        tk.Label(frm,
+                 text=("Place toute la base de données (dettes, historique, stock, "
+                       "catalogue…) sur un disque partagé comme D:\\.\n"
+                       "Les deux systèmes utiliseront alors le MÊME fichier : "
+                       "tout ce que tu ajoutes d'un côté est déjà là de l'autre, "
+                       "plus aucun import.\n\n"
+                       "⚠️ Fais-le d'abord sur le système qui a tes données à jour "
+                       "(il sera recopié). L'autre système détectera ensuite le "
+                       "dossier tout seul."),
+                 font=("Helvetica", 9), bg=DARK_BG, fg=TEXT_MUTED,
+                 justify="left", wraplength=520).pack(anchor="w", pady=(6, 14))
+
+        # État actuel
+        etat = tk.Frame(frm, bg=CARD_BG, padx=14, pady=12)
+        etat.pack(fill="x")
+        self._lbl_part_etat = tk.Label(etat, text="", font=("Helvetica", 10, "bold"),
+                                       bg=CARD_BG, fg=TEXT, justify="left", anchor="w",
+                                       wraplength=500)
+        self._lbl_part_etat.pack(anchor="w")
+        self._lbl_part_chemin = tk.Label(etat, text="", font=("Consolas", 9),
+                                         bg=CARD_BG, fg=TEXT_MUTED, justify="left",
+                                         anchor="w", wraplength=500)
+        self._lbl_part_chemin.pack(anchor="w", pady=(4, 0))
+        self._rafraichir_etat_partage()
+
+        # Boutons
+        btns = tk.Frame(frm, bg=DARK_BG)
+        btns.pack(fill="x", pady=(16, 0))
+        tk.Button(btns, text="📂  Choisir le dossier partagé (ex : D:\\)",
+                  command=self._choisir_dossier_partage,
+                  font=("Helvetica", 11, "bold"), bg=ACCENT, fg="white", bd=0,
+                  cursor="hand2", pady=8).pack(fill="x")
+        tk.Button(btns, text="↩  Revenir à une base locale (ce système seulement)",
+                  command=self._desactiver_partage,
+                  font=("Helvetica", 9), bg=CARD_BG, fg=TEXT_MUTED, bd=0,
+                  cursor="hand2", pady=6).pack(fill="x", pady=(8, 0))
+
+    def _rafraichir_etat_partage(self):
+        try:
+            dossier = db.dossier_partage_actuel()
+        except Exception:
+            dossier = ""
+        if dossier:
+            self._lbl_part_etat.config(text="✅  Données PARTAGÉES", fg=SUCCESS)
+            self._lbl_part_chemin.config(
+                text="Base de données : %s" % os.path.join(dossier, "cantine.db"))
+        else:
+            self._lbl_part_etat.config(text="📍  Données LOCALES (propres à ce système)",
+                                       fg=GOLD)
+            self._lbl_part_chemin.config(text="Base de données : %s" % db.DB_PATH)
+
+    def _choisir_dossier_partage(self):
+        dossier = filedialog.askdirectory(
+            title="Choisis le disque/dossier partagé (ex : D:\\)",
+            parent=self)
+        if not dossier:
+            return
+        try:
+            nouveau = db.definir_dossier_partage(dossier)
+        except Exception as e:
+            messagebox.showerror("Partage impossible", str(e), parent=self)
+            return
+        if messagebox.askyesno(
+                "Redémarrage nécessaire",
+                "C'est prêt ! La base sera partagée ici :\n\n%s\n\n"
+                "L'application doit redémarrer pour l'utiliser.\n"
+                "Redémarrer maintenant ?" % nouveau, parent=self):
+            self._redemarrer_app()
+        else:
+            self._rafraichir_etat_partage()
+
+    def _desactiver_partage(self):
+        if not messagebox.askyesno(
+                "Revenir en local",
+                "Ce système utilisera à nouveau sa propre base locale "
+                "(les données partagées sur le disque ne sont pas supprimées).\n\n"
+                "Continuer ?", parent=self):
+            return
+        try:
+            db.desactiver_dossier_partage()
+        except Exception as e:
+            messagebox.showerror("Erreur", str(e), parent=self)
+            return
+        if messagebox.askyesno("Redémarrage nécessaire",
+                               "Enregistré. Redémarrer l'application maintenant ?",
+                               parent=self):
+            self._redemarrer_app()
+        else:
+            self._rafraichir_etat_partage()
+
+    def _redemarrer_app(self):
+        """Relance l'application puis ferme l'instance actuelle."""
+        try:
+            if getattr(sys, "frozen", False):
+                subprocess.Popen([sys.executable])
+            else:
+                base = os.path.dirname(os.path.abspath(__file__))
+                subprocess.Popen([sys.executable, os.path.join(base, "main.py")])
+        except Exception as e:
+            messagebox.showerror("Redémarrage",
+                                 "Ferme et rouvre l'application manuellement.\n%s" % e,
+                                 parent=self)
+            return
+        # Ferme toute l'application
+        try:
+            self.master.destroy()
+        except Exception:
+            try:
+                self.destroy()
+            except Exception:
+                pass
+        os._exit(0)
+
     def _build_calendrier(self, parent, params):
         """Onglet de configuration de la synchronisation calendrier (.ics)
         vers un dossier OneDrive, auquel One Calendar peut s'abonner."""

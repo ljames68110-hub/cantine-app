@@ -1,8 +1,8 @@
 import sys
-import sqlite3, os, uuid, json
+import sqlite3, os, uuid, json, shutil
 
 def _app_data_dir():
-    """Dossier données utilisateur — fonctionne en .py ET en .exe PyInstaller."""
+    """Dossier données utilisateur LOCAL — fonctionne en .py ET en .exe PyInstaller."""
     if getattr(sys, "frozen", False):
         # Mode .exe : données dans %APPDATA%/CantineApp
         base = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "CantineApp")
@@ -12,7 +12,101 @@ def _app_data_dir():
     os.makedirs(base, exist_ok=True)
     return base
 
-DB_PATH = os.path.join(_app_data_dir(), "cantine.db")
+# ─── Partage de la base entre plusieurs systèmes (ex. PC en double boot) ──────
+# La config (où se trouve la base) reste TOUJOURS locale : chaque système doit
+# pouvoir la lire avant même de savoir où est la base partagée.
+_CONFIG_PATH = os.path.join(_app_data_dir(), "config.json")
+# Nom du sous-dossier créé sur le disque partagé (sert aussi à l'auto-détection).
+_NOM_DOSSIER_PARTAGE = "CantineData"
+
+def _lire_config():
+    try:
+        with open(_CONFIG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def _ecrire_config(cfg):
+    try:
+        with open(_CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception:
+        return False
+
+def _dossier_accessible(d):
+    try:
+        return bool(d) and os.path.isdir(d) and os.access(d, os.W_OK)
+    except Exception:
+        return False
+
+def _resoudre_db_path():
+    """Décide où vit la base :
+    1) un dossier partagé explicitement choisi (config.json) s'il est accessible ;
+    2) sinon, auto-détection d'une base déjà posée sur un disque (D:, E:, ...) ;
+    3) sinon, la base locale (%APPDATA%/CantineApp) — comportement d'origine."""
+    cfg = _lire_config()
+    # 0) partage explicitement désactivé → on reste en local, sans auto-détection
+    if cfg.get("partage_desactive"):
+        return os.path.join(_app_data_dir(), "cantine.db")
+    # 1) dossier partagé configuré
+    d = cfg.get("dossier_partage")
+    if d and _dossier_accessible(d):
+        return os.path.join(d, "cantine.db")
+    # 2) auto-détection : base déjà présente sur un autre disque
+    if os.name == "nt":
+        for lettre in "DEFGHIJKLMNOPQRSTUVWXYZ":
+            cand = "%s:\\%s\\cantine.db" % (lettre, _NOM_DOSSIER_PARTAGE)
+            try:
+                if os.path.exists(cand):
+                    return cand
+            except Exception:
+                pass
+    # 3) base locale
+    return os.path.join(_app_data_dir(), "cantine.db")
+
+DB_PATH = _resoudre_db_path()
+
+def dossier_partage_actuel():
+    """Renvoie le dossier où vit la base SI elle est partagée (hors APPDATA local),
+    sinon '' (base locale)."""
+    try:
+        d = os.path.dirname(DB_PATH)
+        local = _app_data_dir()
+        if os.path.normcase(os.path.normpath(d)) == os.path.normcase(os.path.normpath(local)):
+            return ""
+        return d
+    except Exception:
+        return ""
+
+def definir_dossier_partage(dossier_racine):
+    """Active le partage : la base vivra dans <dossier_racine>\\CantineData\\cantine.db.
+    - Si la base cible n'existe pas encore mais qu'une base actuelle existe,
+      on COPIE l'actuelle (amorçage) — aucune donnée perdue.
+    - N'écrase jamais une base partagée déjà en place.
+    Écrit la config locale. L'appli doit REDÉMARRER pour prendre le changement.
+    Renvoie le nouveau chemin de base. Lève une exception en cas d'échec."""
+    if not _dossier_accessible(dossier_racine):
+        raise RuntimeError("Dossier inaccessible ou non inscriptible : %s" % dossier_racine)
+    cible_dir = os.path.join(dossier_racine, _NOM_DOSSIER_PARTAGE)
+    os.makedirs(cible_dir, exist_ok=True)
+    cible_db = os.path.join(cible_dir, "cantine.db")
+    # Amorçage : recopie la base actuelle si la cible n'existe pas encore.
+    if not os.path.exists(cible_db) and os.path.exists(DB_PATH):
+        shutil.copy2(DB_PATH, cible_db)
+    cfg = _lire_config()
+    cfg["dossier_partage"] = cible_dir
+    cfg.pop("partage_desactive", None)
+    if not _ecrire_config(cfg):
+        raise RuntimeError("Impossible d'enregistrer la configuration.")
+    return cible_db
+
+def desactiver_dossier_partage():
+    """Repasse la base en LOCAL (chaque système sa propre base). Redémarrage requis."""
+    cfg = _lire_config()
+    cfg.pop("dossier_partage", None)
+    cfg["partage_desactive"] = True
+    _ecrire_config(cfg)
 
 PRODUITS_INITIAUX = [
     ("B1","Cristaline 1,5L","Boissons",0.20,18,"Oui"),("B2","Cristaline gazeuse 1,5L","Boissons",0.32,18,"Oui"),
