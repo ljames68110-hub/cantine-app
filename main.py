@@ -1837,10 +1837,11 @@ class ParametresWindow(tk.Toplevel):
         nb.add(tab_livr, text="  🚚  Livraison  ")
         self._build_livraison(tab_livr, params)
 
-        # ── Onglet 7 : Calendrier ───────────────────────────────────────
-        tab_cal = tk.Frame(nb, bg=DARK_BG)
-        nb.add(tab_cal, text="  📆  Calendrier  ")
-        self._build_calendrier(tab_cal, params)
+        # ── Onglet 7 : Calendrier (des créances) — masqué en mode propre ──
+        if db.creances_visibles():
+            tab_cal = tk.Frame(nb, bg=DARK_BG)
+            nb.add(tab_cal, text="  📆  Calendrier  ")
+            self._build_calendrier(tab_cal, params)
 
         # ── Onglet 8 : Données partagées ────────────────────────────────
         tab_part = tk.Frame(nb, bg=DARK_BG)
@@ -1848,9 +1849,12 @@ class ParametresWindow(tk.Toplevel):
         self._build_donnees_partagees(tab_part)
 
         # ── Onglet 9 : Sécurité (chiffrement) ───────────────────────────
-        tab_secu = tk.Frame(nb, bg=DARK_BG)
-        nb.add(tab_secu, text="  🔒  Sécurité  ")
-        self._build_securite(tab_secu)
+        # JAMAIS affiché en mode « propre » (2e mot de passe) : rien ne doit
+        # révéler l'existence du chiffrement ni d'un second mot de passe.
+        if (not db.base_est_chiffree()) or db.creances_visibles():
+            tab_secu = tk.Frame(nb, bg=DARK_BG)
+            nb.add(tab_secu, text="  🔒  Sécurité  ")
+            self._build_securite(tab_secu)
 
     def _build_securite(self, parent):
         """Chiffrement de la base avec 2 mots de passe (déni plausible)."""
@@ -5513,7 +5517,9 @@ class LivraisonsWindow(tk.Toplevel):
                   side="right", padx=12, pady=8)
 
         outils = tk.Frame(self, bg=PANEL_BG); outils.pack(fill="x")
-        tk.Button(outils, text="⟲  Récupérer les bons/créances déjà saisis",
+        _txt_retro = ("⟲  Récupérer les bons/créances déjà saisis"
+                      if db.creances_visibles() else "⟲  Récupérer les bons déjà saisis")
+        tk.Button(outils, text=_txt_retro,
                   command=self._retroactif, font=("Helvetica", 10, "bold"),
                   bg=SUCCESS, fg="white", bd=0, cursor="hand2", pady=7, padx=10).pack(
                   side="left", padx=10, pady=8)
