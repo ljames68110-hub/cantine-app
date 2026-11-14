@@ -595,16 +595,19 @@ class CantineApp(tk.Tk):
         (fichier .exe choisi manuellement) n'est jamais vérifiée automatiquement
         au démarrage, sinon elle redemanderait à chaque lancement."""
         params = db.get_parametres()
-        source = params.get("maj_source", "github")
-        if source == "local":
+        source = params.get("maj_source", "local")
+        # Zéro trace internet : on ne contacte jamais GitHub au démarrage.
+        if source in ("local", "github"):
             return
         _verifier_maj_async(self, source, params.get("maj_chemin", ""), silencieux=True)
 
     def _verifier_maj_manuelle(self):
         """Vérification déclenchée depuis le bouton de l'en-tête."""
         params = db.get_parametres()
-        _verifier_maj_async(self, params.get("maj_source", "github"),
-                             params.get("maj_chemin", ""))
+        source = params.get("maj_source", "local")
+        if source == "github":       # plus de GitHub : on bascule en local
+            source = "local"
+        _verifier_maj_async(self, source, params.get("maj_chemin", ""))
 
     def _on_close(self):
         if messagebox.askyesno("Quitter", "Voulez-vous quitter ?", parent=self):
@@ -1761,7 +1764,7 @@ class ParametresWindow(tk.Toplevel):
         self.title("Paramètres")
         self.configure(bg=DARK_BG)
         self.resizable(False, False)
-        self.geometry("680x700")
+        self.geometry("900x700")
         self._center()
         self._build()
 
@@ -1786,7 +1789,7 @@ class ParametresWindow(tk.Toplevel):
 
         # ── Onglet 1 : Mes informations ───────────────────────────────────────
         tab1 = tk.Frame(nb, bg=DARK_BG)
-        nb.add(tab1, text="  👤  Mes informations  ")
+        nb.add(tab1, text=" 👤 Infos ")
 
         frm = tk.Frame(tab1, bg=DARK_BG, padx=30, pady=20)
         frm.pack(fill="both", expand=True)
@@ -1814,38 +1817,38 @@ class ParametresWindow(tk.Toplevel):
 
         # ── Onglet 2 : Mot de passe ──────────────────────────────────────────
         tab_mdp = tk.Frame(nb, bg=DARK_BG)
-        nb.add(tab_mdp, text="  🔑  Mot de passe  ")
+        nb.add(tab_mdp, text=" 🔑 Mot de passe ")
         self._build_mdp(tab_mdp)
 
         # ── Onglet 3 : Couleurs des bons ─────────────────────────────────────
         tab2 = tk.Frame(nb, bg=DARK_BG)
-        nb.add(tab2, text="  🎨  Couleurs des bons  ")
+        nb.add(tab2, text=" 🎨 Couleurs ")
         self._build_couleurs(tab2)
 
         # ── Onglet 4 : Mises à jour ───────────────────────────────────────
         tab_maj = tk.Frame(nb, bg=DARK_BG)
-        nb.add(tab_maj, text="  🔄  Mises à jour  ")
+        nb.add(tab_maj, text=" 🔄 M.à.j ")
         self._build_maj(tab_maj, params)
 
         # ── Onglet 5 : Impression ───────────────────────────────────────
         tab_impr = tk.Frame(nb, bg=DARK_BG)
-        nb.add(tab_impr, text="  🖨️  Impression  ")
+        nb.add(tab_impr, text=" 🖨️ Impression ")
         self._build_impression(tab_impr, params)
 
         # ── Onglet 6 : Livraison ────────────────────────────────────────
         tab_livr = tk.Frame(nb, bg=DARK_BG)
-        nb.add(tab_livr, text="  🚚  Livraison  ")
+        nb.add(tab_livr, text=" 🚚 Livraison ")
         self._build_livraison(tab_livr, params)
 
         # ── Onglet 7 : Calendrier (des créances) — masqué en mode propre ──
         if db.creances_visibles():
             tab_cal = tk.Frame(nb, bg=DARK_BG)
-            nb.add(tab_cal, text="  📆  Calendrier  ")
+            nb.add(tab_cal, text=" 📆 Calendrier ")
             self._build_calendrier(tab_cal, params)
 
         # ── Onglet 8 : Données partagées ────────────────────────────────
         tab_part = tk.Frame(nb, bg=DARK_BG)
-        nb.add(tab_part, text="  🔗  Données partagées  ")
+        nb.add(tab_part, text=" 🔗 Données ")
         self._build_donnees_partagees(tab_part)
 
         # ── Onglet 9 : Sécurité (chiffrement) ───────────────────────────
@@ -1853,7 +1856,7 @@ class ParametresWindow(tk.Toplevel):
         # révéler l'existence du chiffrement ni d'un second mot de passe.
         if (not db.base_est_chiffree()) or db.creances_visibles():
             tab_secu = tk.Frame(nb, bg=DARK_BG)
-            nb.add(tab_secu, text="  🔒  Sécurité  ")
+            nb.add(tab_secu, text=" 🔒 Sécurité ")
             self._build_securite(tab_secu)
 
     def _build_securite(self, parent):
@@ -2483,11 +2486,15 @@ class ParametresWindow(tk.Toplevel):
         tk.Label(frm, text="Source de mise à jour",
                  font=("Helvetica",10,"bold"), bg=DARK_BG, fg=TEXT_MUTED).pack(anchor="w")
 
-        self.maj_source_var = tk.StringVar(value=params.get("maj_source","github"))
+        # Zéro référence internet : plus d'option GitHub. Mise à jour par clé USB
+        # (fichier local) ou dossier réseau partagé uniquement.
+        _src0 = params.get("maj_source", "local")
+        if _src0 == "github":
+            _src0 = "local"
+        self.maj_source_var = tk.StringVar(value=_src0)
         options = [
-            ("github", "🌐  Internet (GitHub)"),
-            ("reseau", "🖧  Dossier réseau partagé"),
             ("local",  "💾  Fichier .exe local / clé USB"),
+            ("reseau", "🖧  Dossier réseau partagé"),
         ]
         for val, label in options:
             tk.Radiobutton(frm, text=label, value=val, variable=self.maj_source_var,
