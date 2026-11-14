@@ -700,8 +700,14 @@ class CantineApp(tk.Tk):
                 ("📋 Catalogue", self._ouvrir_catalogue, HEADER_BG, "white"),
                 ("🔑 MDP", self._changer_mdp, HEADER_BG, "white"),
                 ("🔄 Mises à jour", self._verifier_maj_manuelle, HEADER_BG, "white"),
-                ("💰 Créances", lambda: CreancesWindow(self), HEADER_BG, "white"),
-                ("🎯 Répartir dettes", self._repartir_dettes, "#7c3aed", "white"),
+            ]
+            # Boutons liés aux créances : masqués en mode « propre » (2e mot de passe)
+            if db.creances_visibles():
+                specs += [
+                    ("💰 Créances", lambda: CreancesWindow(self), HEADER_BG, "white"),
+                    ("🎯 Répartir dettes", self._repartir_dettes, "#7c3aed", "white"),
+                ]
+            specs += [
                 ("📦 Réserve", self._ouvrir_reserve, "#0e7490", "white"),
                 ("📊 Widget stock", self._ouvrir_widget_stock, "#0e7490", "white"),
                 ("🚚 Livraisons", lambda: LivraisonsWindow(self), "#0e7490", "white"),
@@ -1433,8 +1439,12 @@ class CommandeWindow(tk.Toplevel):
 
         # Créance (la personne me doit de l'argent)
         creance_frm = tk.Frame(right, bg="#111827")
-        creance_frm.grid(row=4, column=0, sticky="ew", padx=8, pady=(0,4))
         self.creance_var = tk.BooleanVar(value=self.mode_anonyme)
+        if db.creances_visibles():
+            creance_frm.grid(row=4, column=0, sticky="ew", padx=8, pady=(0,4))
+        else:
+            # Mode « propre » (2e mot de passe) : aucune option créance.
+            self.creance_var.set(False)
         self.creance_chk = tk.Checkbutton(creance_frm,
                        text="💰  Cette personne me doit de l'argent (créance)",
                        variable=self.creance_var, command=self._toggle_creance,
@@ -1836,6 +1846,117 @@ class ParametresWindow(tk.Toplevel):
         tab_part = tk.Frame(nb, bg=DARK_BG)
         nb.add(tab_part, text="  🔗  Données partagées  ")
         self._build_donnees_partagees(tab_part)
+
+        # ── Onglet 9 : Sécurité (chiffrement) ───────────────────────────
+        tab_secu = tk.Frame(nb, bg=DARK_BG)
+        nb.add(tab_secu, text="  🔒  Sécurité  ")
+        self._build_securite(tab_secu)
+
+    def _build_securite(self, parent):
+        """Chiffrement de la base avec 2 mots de passe (déni plausible)."""
+        frm = tk.Frame(parent, bg=DARK_BG, padx=24, pady=16)
+        frm.pack(fill="both", expand=True)
+        tk.Label(frm, text="🔒  Chiffrement de la base",
+                 font=("Helvetica", 13, "bold"), bg=DARK_BG, fg=TEXT).pack(anchor="w")
+
+        if not getattr(db, "_SECU_OK", False):
+            tk.Label(frm, text="Module de chiffrement indisponible sur ce système.",
+                     font=("Helvetica", 10), bg=DARK_BG, fg=DANGER).pack(anchor="w", pady=10)
+            return
+
+        chiffree = db.base_est_chiffree()
+        tk.Label(frm,
+                 text=("Deux mots de passe :\n"
+                       "  • Mot de passe 1 (COMPLET) : ouvre l'appli avec les créances.\n"
+                       "  • Mot de passe 2 (PROPRE)  : ouvre l'appli SANS les créances\n"
+                       "    (ni noms, ni montants, ni historique). Rien n'indique qu'un\n"
+                       "    2e mot de passe existe.\n\n"
+                       "Sans mot de passe, le fichier est illisible, même hors de l'appli."),
+                 font=("Helvetica", 9), bg=DARK_BG, fg=TEXT_MUTED,
+                 justify="left").pack(anchor="w", pady=(6, 14))
+
+        etat = tk.Frame(frm, bg=CARD_BG, padx=14, pady=10)
+        etat.pack(fill="x")
+        tk.Label(etat,
+                 text=("✅  Base CHIFFRÉE (2 mots de passe actifs)" if chiffree
+                       else "📍  Base NON chiffrée"),
+                 font=("Helvetica", 10, "bold"), bg=CARD_BG,
+                 fg=SUCCESS if chiffree else GOLD).pack(anchor="w")
+
+        btns = tk.Frame(frm, bg=DARK_BG); btns.pack(fill="x", pady=(16, 0))
+        if not chiffree:
+            tk.Button(btns, text="🔒  Activer le chiffrement (définir les 2 mots de passe)",
+                      command=self._activer_chiffrement,
+                      font=("Helvetica", 11, "bold"), bg=ACCENT, fg="white", bd=0,
+                      cursor="hand2", pady=8).pack(fill="x")
+        else:
+            tk.Button(btns, text="🔑  Changer les deux mots de passe",
+                      command=self._changer_chiffrement,
+                      font=("Helvetica", 11, "bold"), bg=ACCENT, fg="white", bd=0,
+                      cursor="hand2", pady=8).pack(fill="x")
+
+    def _demander_deux_mdp(self, titre):
+        """Demande mot de passe A (x2) et B (x2). Renvoie (a, b) ou None."""
+        a1 = simpledialog.askstring(titre, "Mot de passe COMPLET (avec créances) :",
+                                    show="•", parent=self)
+        if not a1:
+            return None
+        a2 = simpledialog.askstring(titre, "Confirmez le mot de passe complet :",
+                                    show="•", parent=self)
+        if a1 != a2:
+            messagebox.showerror("Erreur", "Les mots de passe complets ne correspondent pas.",
+                                 parent=self); return None
+        b1 = simpledialog.askstring(titre, "Mot de passe PROPRE (sans créances) :",
+                                    show="•", parent=self)
+        if not b1:
+            return None
+        b2 = simpledialog.askstring(titre, "Confirmez le mot de passe propre :",
+                                    show="•", parent=self)
+        if b1 != b2:
+            messagebox.showerror("Erreur", "Les mots de passe propres ne correspondent pas.",
+                                 parent=self); return None
+        if a1 == b1:
+            messagebox.showerror("Erreur", "Les deux mots de passe doivent être différents.",
+                                 parent=self); return None
+        return a1, b1
+
+    def _activer_chiffrement(self):
+        if not messagebox.askyesno(
+                "Activer le chiffrement",
+                "La base va être chiffrée avec 2 mots de passe.\n"
+                "⚠️ Si tu oublies le mot de passe complet, les créances seront "
+                "définitivement inaccessibles.\n\nContinuer ?", parent=self):
+            return
+        res = self._demander_deux_mdp("Activer le chiffrement")
+        if not res:
+            return
+        try:
+            db.configurer_chiffrement(res[0], res[1])
+        except Exception as e:
+            messagebox.showerror("Erreur", str(e), parent=self); return
+        messagebox.showinfo("Chiffrement activé",
+                            "C'est fait. L'application va redémarrer et demander "
+                            "un mot de passe.", parent=self)
+        self._redemarrer_app()
+
+    def _changer_chiffrement(self):
+        ancien = simpledialog.askstring("Changer les mots de passe",
+                                        "Mot de passe COMPLET actuel :",
+                                        show="•", parent=self)
+        if not ancien:
+            return
+        res = self._demander_deux_mdp("Nouveaux mots de passe")
+        if not res:
+            return
+        try:
+            db.changer_mots_de_passe(ancien, res[0], res[1])
+        except db.securite.MauvaisMotDePasse:
+            messagebox.showerror("Erreur",
+                                 "Mot de passe complet actuel incorrect.", parent=self); return
+        except Exception as e:
+            messagebox.showerror("Erreur", str(e), parent=self); return
+        messagebox.showinfo("Fait", "Mots de passe changés. Redémarrage.", parent=self)
+        self._redemarrer_app()
 
     def _build_donnees_partagees(self, parent):
         """Onglet : stocker la base sur un disque partagé (ex. D:\\) pour que
@@ -4239,15 +4360,16 @@ class ImportListeWindow(tk.Toplevel):
                   font=("Helvetica",9), bg=DANGER, fg="white", bd=0,
                   cursor="hand2", pady=4, padx=10).pack(side="right", padx=10)
 
-        # Option créance globale
-        opt = tk.Frame(self, bg=PANEL_BG); opt.pack(fill="x")
+        # Option créance globale (masquée en mode « propre »)
         self.creance_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(opt, text="💰  Marquer tous ces bons comme créances "
-                       "(dette — sans identité ni signature)",
-                       variable=self.creance_var,
-                       bg=PANEL_BG, fg=TEXT, activebackground=PANEL_BG,
-                       activeforeground=TEXT, selectcolor=CARD_BG,
-                       font=("Helvetica",9,"bold")).pack(side="left", padx=12, pady=8)
+        if db.creances_visibles():
+            opt = tk.Frame(self, bg=PANEL_BG); opt.pack(fill="x")
+            tk.Checkbutton(opt, text="💰  Marquer tous ces bons comme créances "
+                           "(dette — sans identité ni signature)",
+                           variable=self.creance_var,
+                           bg=PANEL_BG, fg=TEXT, activebackground=PANEL_BG,
+                           activeforeground=TEXT, selectcolor=CARD_BG,
+                           font=("Helvetica",9,"bold")).pack(side="left", padx=12, pady=8)
 
         # Zone de liste (arbre personne > catégorie > articles)
         cols = ("info","qte","prix","total")
@@ -5483,12 +5605,42 @@ class LivraisonsWindow(tk.Toplevel):
 # ─────────────────────────────────────────────
 # ENTRY POINT
 # ─────────────────────────────────────────────
+def _demarrer_chiffre():
+    """Démarrage quand la base est chiffrée : un seul mot de passe est demandé.
+    Selon le mot de passe saisi, l'appli s'ouvre complète (avec créances) ou
+    « propre » (sans créances) — sans aucune indication qu'il existe 2 codes."""
+    root = tk.Tk(); root.withdraw()
+    while True:
+        mdp = simpledialog.askstring("Gestion Cantine", "Mot de passe :",
+                                     show="•", parent=root)
+        if mdp is None:
+            root.destroy(); return          # annulé -> on quitte
+        try:
+            db.ouvrir_base(mdp)
+            break
+        except db.securite.MauvaisMotDePasse:
+            messagebox.showerror("Erreur", "Mot de passe incorrect.", parent=root)
+        except Exception as e:
+            messagebox.showerror("Erreur",
+                                 "Impossible d'ouvrir la base.\n%s" % e, parent=root)
+            root.destroy(); return
+    root.destroy()
+    params = db.get_parametres()
+    info = {"nom": params.get("nom", "LUTZ"), "prenom": params.get("prenom", "Yoann"),
+            "ecrou": params.get("ecrou", "9283"), "batiment": params.get("batiment", "C"),
+            "cellule": params.get("cellule", "323")}
+    app = CantineApp("yoann", info)
+    app.mainloop()
+
+
 if __name__ == "__main__":
     # Mode widget intégré : « Cantine.exe --widget » lance directement le petit
     # widget de stock (gadget de bureau), sans login ni fenêtre principale.
     if "--widget" in sys.argv:
         import widget_stock
         widget_stock.main()
+    elif db.base_est_chiffree():
+        _demarrer_chiffre()
     else:
         db.init_db()
         login = LoginWindow()

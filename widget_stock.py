@@ -1073,10 +1073,29 @@ class EffacerStockDialog(tk.Toplevel):
 
 
 def main():
-    try:
-        db.init_db()
-    except Exception:
-        pass
+    # Si la base est chiffrée, demander le mot de passe (A ou B : le stock est
+    # partagé, identique dans les deux modes).
+    if db.base_est_chiffree():
+        root = tk.Tk(); root.withdraw()
+        while True:
+            mdp = simpledialog.askstring("Widget stock", "Mot de passe :",
+                                         show="•", parent=root)
+            if mdp is None:
+                root.destroy(); return
+            try:
+                db.ouvrir_base(mdp); break
+            except db.securite.MauvaisMotDePasse:
+                messagebox.showerror("Erreur", "Mot de passe incorrect.", parent=root)
+            except Exception as e:
+                messagebox.showerror("Erreur", "Impossible d'ouvrir la base.\n%s" % e,
+                                     parent=root)
+                root.destroy(); return
+        root.destroy()
+    else:
+        try:
+            db.init_db()
+        except Exception:
+            pass
     StockWidget().mainloop()
 
 

@@ -1,6 +1,13 @@
 import sys
 import sqlite3, os, uuid, json, shutil
 
+try:
+    import securite
+    _SECU_OK = True
+except Exception:
+    securite = None
+    _SECU_OK = False
+
 def _app_data_dir():
     """Dossier données utilisateur LOCAL — fonctionne en .py ET en .exe PyInstaller."""
     if getattr(sys, "frozen", False):
@@ -365,7 +372,191 @@ PRODUITS_INITIAUX = [
     ("T25","Pall mall à rouler","Tabac",17.50,20,"Oui"),
 ]
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  CHIFFREMENT + DÉNI PLAUSIBLE (2 mots de passe)
+#  - mot de passe A (COMPLET) : base entière, avec les créances.
+#  - mot de passe B (PROPRE)  : même appli SANS les créances (ni noms, ni
+#    montants, ni historique) — et le compartiment créances est indéchiffrable
+#    et indétectable avec ce mot de passe.
+#  La base déchiffrée vit UNIQUEMENT en mémoire ; le disque ne contient que le
+#  conteneur chiffré (taille fixe).
+# ═══════════════════════════════════════════════════════════════════════════
+_conn = None            # connexion SQLite EN MÉMOIRE (si base chiffrée)
+_CHIFFRE = False        # True quand une base chiffrée est chargée
+_MODE = "full"          # 'full' (avec créances) | 'clean' (sans)
+_CTX = None             # contexte de re-sauvegarde (securite)
+_suspend_save = False   # True pendant le chargement (ne pas écraser le secret)
+
+# Tables qui portent des données de créance ; tout le reste = partagé.
+_TABLES_CREANCE = ("bons", "lignes_bon", "receptions_attendues", "receptions_lignes")
+
+
+def base_est_chiffree():
+    return _SECU_OK and securite.est_conteneur_chiffre(DB_PATH)
+
+
+def mode_actuel():
+    return _MODE if _CHIFFRE else "full"
+
+
+def creances_visibles():
+    """Vrai si les créances doivent être affichées (mode complet, ou base non
+    chiffrée)."""
+    return mode_actuel() == "full"
+
+
+def _autres_tables(conn):
+    rows = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    return [r[0] for r in rows
+            if not r[0].startswith("sqlite_") and r[0] not in _TABLES_CREANCE]
+
+
+def _partition_shared(conn):
+    """Retire les créances (le partagé = tout sauf créances)."""
+    c = conn
+    c.execute("DELETE FROM lignes_bon WHERE bon_id IN (SELECT id FROM bons WHERE est_creance=1)")
+    c.execute("DELETE FROM bons WHERE est_creance=1")
+    c.execute("DELETE FROM receptions_lignes WHERE reception_id IN "
+              "(SELECT id FROM receptions_attendues WHERE type='creance')")
+    c.execute("DELETE FROM receptions_attendues WHERE type='creance'")
+    c.commit()
+
+
+def _partition_secret(conn):
+    """Ne garde QUE les créances (vide tout le reste)."""
+    c = conn
+    c.execute("DELETE FROM lignes_bon WHERE bon_id NOT IN (SELECT id FROM bons WHERE est_creance=1)")
+    c.execute("DELETE FROM bons WHERE est_creance=0")
+    c.execute("DELETE FROM receptions_lignes WHERE reception_id NOT IN "
+              "(SELECT id FROM receptions_attendues WHERE type='creance')")
+    c.execute("DELETE FROM receptions_attendues WHERE type IS NULL OR type!='creance'")
+    for t in _autres_tables(c):
+        c.execute("DELETE FROM %s" % t)
+    c.commit()
+
+
+def _serialiser_partition(data_full, secret):
+    tmp = sqlite3.connect(":memory:")
+    tmp.deserialize(data_full)
+    (_partition_secret if secret else _partition_shared)(tmp)
+    b = tmp.serialize()
+    tmp.close()
+    return b
+
+
+def _merger_secret(conn, data_secret):
+    if not data_secret:
+        return
+    tmp = sqlite3.connect(":memory:")
+    tmp.deserialize(data_secret)
+    for table in _TABLES_CREANCE:
+        rows = tmp.execute("SELECT * FROM %s" % table).fetchall()
+        if not rows:
+            continue
+        ph = ",".join(["?"] * len(rows[0]))
+        conn.executemany("INSERT INTO %s VALUES (%s)" % (table, ph), rows)
+    conn.commit()
+    tmp.close()
+
+
+def _persist():
+    """Sauvegarde chiffrée (appelée à chaque commit en mode chiffré)."""
+    if _suspend_save or not _CHIFFRE or _conn is None or not _SECU_OK:
+        return
+    data_full = _conn.serialize()
+    data_shared = _serialiser_partition(data_full, secret=False)
+    if _MODE == "full":
+        data_secret = _serialiser_partition(data_full, secret=True)
+        securite.sauvegarder_conteneur(DB_PATH, _CTX, data_shared, data_secret)
+    else:
+        securite.sauvegarder_conteneur(DB_PATH, _CTX, data_shared, None)
+
+
+class _ConnMem:
+    """Proxy vers la connexion en mémoire : close() ne ferme rien, commit()
+    déclenche la sauvegarde chiffrée. Permet de garder les ~75 appels à
+    get_connection() inchangés."""
+    def cursor(self): return _conn.cursor()
+    def execute(self, *a, **k): return _conn.execute(*a, **k)
+    def executemany(self, *a, **k): return _conn.executemany(*a, **k)
+    def executescript(self, *a, **k): return _conn.executescript(*a, **k)
+    def commit(self):
+        _conn.commit(); _persist()
+    def rollback(self): return _conn.rollback()
+    def close(self): pass
+    def __iter__(self): return iter(_conn)
+    def __getattr__(self, n): return getattr(_conn, n)
+    def __setattr__(self, n, v): setattr(_conn, n, v)
+
+
+def ouvrir_base(mot_de_passe):
+    """Charge la base chiffrée en mémoire. Renvoie 'full' ou 'clean'.
+    Lève securite.MauvaisMotDePasse si le mot de passe est incorrect."""
+    global _conn, _CHIFFRE, _MODE, _CTX, _suspend_save
+    res = securite.ouvrir_conteneur(DB_PATH, mot_de_passe)
+    _suspend_save = True
+    _conn = sqlite3.connect(":memory:", check_same_thread=False)
+    _conn.deserialize(res["data_shared"])
+    _CHIFFRE = True
+    _MODE = res["mode"]
+    _CTX = res["_ctx"]
+    init_db()  # crée les tables manquantes / migrations (via le proxy)
+    if _MODE == "full":
+        _merger_secret(_conn, res.get("data_secret"))
+    _suspend_save = False
+    _persist()  # fige les éventuelles migrations dans le conteneur
+    return _MODE
+
+
+def configurer_chiffrement(mdp_a, mdp_b):
+    """Chiffre la base ACTUELLE avec deux mots de passe (A=complet, B=sans
+    créances). Écrase le fichier par le conteneur chiffré. Redémarrage requis."""
+    if not _SECU_OK:
+        raise RuntimeError("Module de chiffrement indisponible (cryptography).")
+    if not mdp_a or not mdp_b:
+        raise ValueError("Les deux mots de passe sont obligatoires.")
+    if mdp_a == mdp_b:
+        raise ValueError("Les deux mots de passe doivent être différents.")
+    # Zéro trace internet dans la base partagée : plus de référence à github.
+    try:
+        set_parametre("maj_source", "local")
+        set_parametre("maj_chemin", "")
+    except Exception:
+        pass
+    if _CHIFFRE and _conn is not None:
+        data_full = _conn.serialize()
+    else:
+        src = sqlite3.connect(DB_PATH)
+        data_full = src.serialize()
+        src.close()
+    data_shared = _serialiser_partition(data_full, secret=False)
+    data_secret = _serialiser_partition(data_full, secret=True)
+    securite.creer_conteneur(DB_PATH, mdp_a, mdp_b, data_shared, data_secret)
+
+
+def changer_mots_de_passe(ancien_complet, nouveau_a, nouveau_b):
+    """Change les deux mots de passe. Exige l'ancien mot de passe COMPLET (A)."""
+    if not _SECU_OK:
+        raise RuntimeError("Module de chiffrement indisponible.")
+    if not nouveau_a or not nouveau_b or nouveau_a == nouveau_b:
+        raise ValueError("Deux mots de passe différents et non vides sont requis.")
+    res = securite.ouvrir_conteneur(DB_PATH, ancien_complet)  # lève si faux
+    if res["mode"] != "full":
+        raise securite.MauvaisMotDePasse()  # il faut le mot de passe complet
+    tmp = sqlite3.connect(":memory:")
+    tmp.deserialize(res["data_shared"])
+    _merger_secret(tmp, res.get("data_secret"))
+    data_full = tmp.serialize()
+    tmp.close()
+    ds = _serialiser_partition(data_full, secret=False)
+    dsec = _serialiser_partition(data_full, secret=True)
+    securite.creer_conteneur(DB_PATH, nouveau_a, nouveau_b, ds, dsec)
+
+
 def get_connection():
+    if _CHIFFRE and _conn is not None:
+        _conn.row_factory = None
+        return _ConnMem()
     return sqlite3.connect(DB_PATH)
 
 def init_db():
@@ -679,6 +870,13 @@ def changer_mot_de_passe(login, nouveau_mdp):
 def sauvegarder_bon(categorie, nom, prenom, ecrou, batiment, cellule, lignes, total, date_str,
                      user_type="invite", est_creance=0, nom_creance="", jour_creance="",
                      date_creance=""):
+    # Sécurité : en mode « propre » (2e mot de passe), aucune créance ne peut
+    # être créée (elle serait perdue à la sauvegarde car hors du compartiment
+    # secret). On la traite comme un bon normal.
+    if est_creance and not creances_visibles():
+        est_creance = 0
+        nom_creance = ""
+        date_creance = ""
     conn = get_connection()
     c = conn.cursor()
     bon_uid = str(uuid.uuid4())
